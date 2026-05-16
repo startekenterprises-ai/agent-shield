@@ -1,0 +1,16 @@
+
+# Build and packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Python compiler cache and distribution builds
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Local Environment & Container variables
+.env
+.pytest_cache/

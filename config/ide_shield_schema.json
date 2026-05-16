@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org",
+  "title": "VibeShieldIDESettings",
+  "type": "object",
+  "properties": {
+    "global_protection_enabled": {
+      "type": "boolean",
+      "title": "Enable Agent Firewall",
+      "description": "Actively inspects all web scraping, search results, and external strings before they hit your AI models.",
+      "default": true
+    },
+    "security_profile": {
+      "type": "string",
+      "title": "Protection Strictness",
+      "enum": ["permissive", "balanced", "strict"],
+      "default": "balanced",
+      "description": "Permissive blocks overt threats. Strict utilizes multi-stage local LLM validation loops to prevent semantic bypasses."
+    },
+    "active_modules": {
+      "type": "object",
+      "title": "Protection Categories",
+      "properties": {
+        "indirect_injection": {
+          "type": "boolean",
+          "title": "Block System Instructions",
+          "description": "Filters phrases like 'ignore all previous instructions'.",
+          "default": true
+        },
+        "jailbreaks": {
+          "type": "boolean",
+          "title": "Jailbreak Signatures",
+          "description": "Intercepts DAN mode, Developer Mode, and persona overrides.",
+          "default": true
+        },
+        "destructive_commands": {
+          "type": "boolean",
+          "title": "System Destruction Commands",
+          "description": "Blocks shell execution strings such as 'sudo rm -rf'.",
+          "default": true
+        },
+        "pii_leak_prevention": {
+          "type": "boolean",
+          "title": "Outbound PII Protection",
+          "description": "Prevents agents from exfiltrating API keys or private environmental data to the open internet.",
+          "default": false
+        }
+      }
+    },
+    "local_llm_verification": {
+      "type": "object",
+      "title": "Local LLM Guardrails (Ollama)",
+      "properties": {
+        "use_ollama_evaluator": {
+          "type": "boolean",
+          "title": "Dual-LLM Semantic Checking",
+          "description": "Routes suspicious snippets to a lightning-fast local model to confirm intent.",
+          "default": false
+        },
+        "selected_model": {
+          "type": "string",
+          "title": "Ollama Evaluation Model",
+          "enum": ["qwen2.5-coder:1.5b", "llama3:8b", "phi3:mini"],
+          "default": "qwen2.5-coder:1.5b"
+        }
+      }
+    },
+    "custom_user_patterns": {
+      "type": "array",
+      "title": "Custom Blocklist Keywords",
+      "description": "User-defined phrase lists or specific terms you want strictly scrubbed from search returns.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  }
+}
