@@ -6,11 +6,8 @@ services:
     container_name: agent-shield-gateway
     ports:
       - "8000:8000"
-    environment:
-      - SEARCH_PROVIDER=searxng
-      # Points directly to your isolated background SearXNG VM instance
-      - REAL_SEARXNG_URL=http://192.168.2.42:8080
-      # Connects cleanly to your external Ollama backend host service port
-      - OLLAMA_HOST=http://192.168.2.42:11434
+    # Natively injects variables declared inside your local .env file
+    env_file:
+      - .env
     restart: unless-stopped
 
