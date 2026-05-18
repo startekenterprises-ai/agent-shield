@@ -1,17 +1,21 @@
 {
-  "skills": {
-    "searxng": {
-      "enabled": true,
-      "env": {
-        "SEARXNG_URL": "http://agent-shield-gateway:8000/"
-      }
-    }
+  "agent": {
+    "workspace_dir": "/app/workspace",
+    "verbose": true
   },
-  "providers": {
-    "ollama": {
-      "base_url": "http://docker.internal",
-      "model": "qwen2.5-coder-7b:128k"
-    }
+  "browser": {
+    "headless": true,
+    "timeout": 30000
+  },
+  "search": {
+    "provider": "searxng",
+    "api_base": "http://agent-shield-gateway:8000/search"
+  },
+  "llm": {
+    "provider": "openai_compatible",
+    "api_base": "https://openrouter.ai",
+    "model": "google/gemini-2.5-flash:free",
+    "temperature": 0.0,
+    "fallback_ollama_base": ""
   }
 }
-

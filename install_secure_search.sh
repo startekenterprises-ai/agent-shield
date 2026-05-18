@@ -2,15 +2,73 @@
 set -e
 
 STATE_FILE="./.shield_state"
-echo "🛡️  Agent-Shield: Modular AI Security Mesh Installer"
+ENV_FILE="./.env"
+echo "🛡️  Agent-Shield: Intelligent AI Security Mesh Installer"
 echo "======================================================="
 
-# Load saved backend parameters if they exist
+# ---------------------------------------------------------------------------
+# Pre-Flight Checklist: Environment Key Matrix Generation
+# ---------------------------------------------------------------------------
+# Create a default .env file if it is missing
+if [ ! -f "$ENV_FILE" ]; then
+    touch "$ENV_FILE"
+fi
+
+# Load existing environment state variables safely
 if [ -f "$STATE_FILE" ]; then
     source "$STATE_FILE"
 else
     REAL_SEARXNG_URL="http://searxng-private-mesh:8080"
 fi
+
+# ---------------------------------------------------------------------------
+# INTERACTIVE KEY INTERCEPT ENGINE (Auto-configures LLM Failovers)
+# ---------------------------------------------------------------------------
+echo "--- 🔑 LLM BACKEND PROVIDER REGISTRATION MATRIX ---"
+
+# Step A: Local Ollama Inspection
+read -p "❓ Do you run a local Ollama instance on this host system? (y/N): " HAS_OLLAMA
+if [[ "$HAS_OLLAMA" =~ ^[Yy]$ ]]; then
+    OLLAMA_TARGET="http://docker.internal"
+    echo "✅ Local Ollama route mapped to host gateway link."
+else
+    OLLAMA_TARGET=""
+fi
+
+# Step B: OpenRouter Cloud Fallback Loop
+if grep -q "OPENROUTER_API_KEY=" "$ENV_FILE" && [ ! -z "$(grep "OPENROUTER_API_KEY=" "$ENV_FILE" | cut -d'=' -f2)" ]; then
+    CURRENT_KEY=$(grep "OPENROUTER_API_KEY=" "$ENV_FILE" | cut -d'=' -f2)
+    echo "💡 Active OpenRouter API Token detected in local environment configuration."
+    read -p "❓ Do you want to update or replace this OpenRouter token? (y/N): " CHANGE_KEY
+    if [[ "$CHANGE_KEY" =~ ^[Yy]$ ]]; then
+        echo "🌐 Navigate to your browser context and generate a free API token:"
+        echo "   👉 https://openrouter.ai/workspaces/default/keys"
+        read -p "🔑 Paste your OpenRouter API Key: " OPENROUTER_API_KEY
+    else
+        OPENROUTER_API_KEY=$CURRENT_KEY
+    fi
+else
+    echo "🌐 To run high-end reasoning without a GPU, generate a free API token:"
+    echo "   👉 https://openrouter.ai/workspaces/default/keys"
+    read -p "🔑 Paste your OpenRouter API Key (or hit Enter to skip): " OPENROUTER_API_KEY
+fi
+
+# Synchronize runtime parameters into your hidden project environment config
+sed -i '/OPENROUTER_API_KEY=/d' "$ENV_FILE" 2>/dev/null || true
+echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> "$ENV_FILE"
+
+# Determine the primary operational model out of the box based on input profiles
+if [ ! -z "$OPENROUTER_API_KEY" ]; then
+    DEFAULT_MODEL="google/gemini-2.5-flash:free"
+    DEFAULT_BASE="https://openrouter.ai"
+    echo "🚀 Configuration targeted to: OpenRouter Cloud Free Tier ($DEFAULT_MODEL)"
+else
+    DEFAULT_MODEL="qwen2.5-coder-7b:128k"
+    DEFAULT_BASE="http://docker.internal/v1"
+    echo "🚀 Configuration targeted to: Local Ollama Engine Pipeline ($DEFAULT_MODEL)"
+fi
+
+echo ""
 
 # Helper function to check if a specific container is running actively
 is_active() {
@@ -18,7 +76,7 @@ is_active() {
 }
 
 # ---------------------------------------------------------------------------
-# Module 1: SearXNG Private Search Engine
+# Module 1: SearXNG Private Search Engine Configuration
 # ---------------------------------------------------------------------------
 echo "--- 📦 MODULE 1: UPSTREAM SEARCH ENGINE ---"
 if is_active "searxng-private-mesh"; then
@@ -28,7 +86,6 @@ else
     read -p "❓ Deploy fresh local SearXNG container inside WSL on port 8088? (Y/n): " DEPLOY_SEARXNG
 fi
 
-# Handle configuration if they reject the local option
 if [[ "$DEPLOY_SEARXNG" =~ ^[Nn]$ ]]; then
     if [ -z "$SAVED_EXTERNAL_URL" ]; then
         read -p "  👉 Enter your pre-existing external SearXNG URL (e.g. http://192.168.2.42:8080): " REAL_SEARXNG_URL
@@ -44,8 +101,9 @@ else
 fi
 
 echo ""
+
 # ---------------------------------------------------------------------------
-# Module 2: Agent-Shield Security Gateway Core
+# Module 2: Agent-Shield Security Gateway Core Configuration
 # ---------------------------------------------------------------------------
 echo "--- 🛡️  MODULE 2: AGENT-SHIELD FIREWALL CORE ---"
 if is_active "agent-shield-gateway"; then
@@ -56,8 +114,9 @@ else
 fi
 
 echo ""
+
 # ---------------------------------------------------------------------------
-# Module 3: OpenClaw Agent Workspace Space
+# Module 3: OpenClaw Agent Workspace Container Configuration
 # ---------------------------------------------------------------------------
 echo "--- 🎨 MODULE 3: HYPERCONVERGED AGENT WORKSPACE ---"
 if is_active "openclaw-agent-workspace"; then
@@ -68,7 +127,7 @@ else
 fi
 
 # ===========================================================================
-# Execution Block
+# Orchestration Pipeline Execution Engine
 # ===========================================================================
 echo "======================================================="
 echo "🚀 Executing targeted container orchestration lifecycle..."
@@ -76,7 +135,7 @@ echo "🚀 Executing targeted container orchestration lifecycle..."
 # Create a shared custom network bridge for stand-alone container DNS resolution
 docker network create agent-shield-mesh 2>/dev/null || true
 
-# Execute SearXNG Block
+# Execute Module 1: SearXNG Deployment Loop
 if [ "$RUN_SEARXNG_ACTION" = true ] && [[ "$DEPLOY_SEARXNG" =~ ^[Yy]$ || "$DEPLOY_SEARXNG" == "" ]]; then
     echo "📦 Re-allocating isolated SearXNG Private Mesh container..."
     mkdir -p ./config/searxng
@@ -102,7 +161,7 @@ else
     echo "➡️  Skipping SearXNG structural changes."
 fi
 
-# Execute Agent-Shield Block
+# Execute Module 2: Agent-Shield Core Deployment Loop
 if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
     echo "🛠️  Compiling localized Agent-Shield container image layers..."
     docker build -t agent-shield:latest .
@@ -122,16 +181,45 @@ else
     echo "➡️  Skipping Agent-Shield Core structural changes."
 fi
 
-# Execute OpenClaw Block
+# Execute Module 3: OpenClaw Deployment Loop with Failover Injection
 if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
     echo "🎨 Compiling graphics-compliant OpenClaw environment..."
+
+    # Regenerate openclaw.json profile rules dynamically to match onboarding selections
+    cat << EOF > ./containers/openclaw/openclaw.json
+{
+  "agent": {
+    "workspace_dir": "/app/workspace",
+    "verbose": true
+  },
+  "browser": {
+    "headless": true,
+    "timeout": 30000
+  },
+  "search": {
+    "provider": "searxng",
+    "api_base": "http://agent-shield-gateway:8000/search"
+  },
+  "llm": {
+    "provider": "openai_compatible",
+    "api_base": "$DEFAULT_BASE",
+    "model": "$DEFAULT_MODEL",
+    "temperature": 0.0,
+    "fallback_ollama_base": "$OLLAMA_TARGET"
+  }
+}
+EOF
+
     docker build -t openclaw-agent:latest ./containers/openclaw/
     docker rm -f openclaw-agent-workspace || true
     mkdir -p ./workspace
+
     docker run -d \
       --name openclaw-agent-workspace \
       --network agent-shield-mesh \
       -v "$(pwd)/workspace:/app/workspace" \
+      -e OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
+      --add-host "host.docker.internal:host-gateway" \
       --restart always \
       openclaw-agent:latest
 else
