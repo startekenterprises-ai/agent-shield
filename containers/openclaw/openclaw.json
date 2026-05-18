@@ -1,0 +1,16 @@
+{
+  "skills": {
+    "searxng": {
+      "enabled": true,
+      "env": {
+        "SEARXNG_URL": "http://agent-shield-gateway:8000/"
+      }
+    }
+  },
+  "providers": {
+    "ollama": {
+      "base_url": "http://docker.internal",
+      "model": "qwen2.5-coder-7b:128k"
+    }
+  }
+}
