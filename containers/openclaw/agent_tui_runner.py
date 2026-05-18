@@ -16,28 +16,35 @@ class SecuredLLMProxy:
 
 async def run_agent_workflow(llm_client, model_label, user_task):
     """Encapsulates the browser execution context initialization block."""
-    # 🛡️ Initializing completely blank forces the engine to resolve defaults
-    # and adapt dynamically to whatever package variant your container pulled
-    browser_pool = Browser()
+    print("🌐 [Sandbox Engine]: Spinning up isolated browser instance...")
 
+    # 1. Instantiate the browser engine context
+    my_browser = Browser()
     llm_proxy = SecuredLLMProxy(llm_client, model_label)
 
-    # Run tasks without strict tool-calling vision schema blocks
+    # 2. Map the structural agent layout
     agent = Agent(
         task=user_task,
         llm=llm_proxy,
-        browser=browser_pool,
-        use_vision=False  # Prevents rigid Pydantic vision-schema errors
+        browser=my_browser,
+        use_vision=True
     )
 
     try:
-        await agent.run()
+        # Prevent variable overwriting by using a unique output handle
+        agent_history = await agent.run()
+        print("\n🏆 Task Execution Finished. Status Safe.")
         return True
     except Exception as e:
         print(f"⚠️  [Provider Warning]: Task execution encountered an error: {e}")
         return False
     finally:
-        await browser_pool.close()
+        # 3. Explicitly target the correct browser class reference safely
+        try:
+            await my_browser.close()
+            print("🛑 [Sandbox Engine]: Browser connection closed cleanly.")
+        except Exception as close_error:
+            print(f"⚠️  Error closing browser instance: {close_error}")
 
 async def main():
     print("🛡️  [Secure AI Workspace]: Reading local openclaw.json environment profiles...")
@@ -45,12 +52,11 @@ async def main():
     with open(config_path, "r") as f:
         config = json.load(f)
 
-    # 🛡️ NETWORK ROUTING BARRIERS: Force Playwright/Chromium to pass all
-    # external web traffic straight through the Agent-Shield proxy container port
+    # 1. Force external chromium calls to route through Agent-Shield
     os.environ["HTTP_PROXY"] = "http://agent-shield-gateway:8000"
     os.environ["HTTPS_PROXY"] = "http://agent-shield-gateway:8000"
 
-    # Exclude internal cluster docker sockets from running through the proxy
+    # 2. Block internal loopback sockets from routing to the gateway
     os.environ["NO_PROXY"] = "localhost,127.0.0.1,agent-shield-gateway,searxng-private-mesh"
     os.environ["ANONYMIZED_TELEMETRY"] = "false"
 
@@ -71,7 +77,7 @@ async def main():
     success = await run_agent_workflow(primary_client, config["llm"]["model"], task)
 
     # Attempt Priority 2: Fallback to Local Ollama if Primary fails or hits caps
-    if not success and config["llm"]["fallback_ollama_base"]:
+    if not success and config["llm"]["fallback_ollama_base"] and config["llm"]["fallback_ollama_base"] != "":
         print("\n🔄 [CYCLE ACTIVE]: Primary provider limit reached or execution blocked.")
         print("🚨 Falling back natively to local hardware safety infrastructure (Ollama)...")
 
