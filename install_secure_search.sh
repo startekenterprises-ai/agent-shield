@@ -9,7 +9,7 @@ echo "======================================================="
 if [ -f "$STATE_FILE" ]; then
     source "$STATE_FILE"
 else
-    REAL_SEARXNG_URL="http://192.168.2.42:8088"
+    REAL_SEARXNG_URL="http://searxng-private-mesh:8080"
 fi
 
 # Helper function to check if a specific container is running actively
@@ -39,7 +39,7 @@ if [[ "$DEPLOY_SEARXNG" =~ ^[Nn]$ ]]; then
     SAVED_EXTERNAL_URL=$REAL_SEARXNG_URL
     RUN_SEARXNG_ACTION=false
 else
-    REAL_SEARXNG_URL="http://192.168.2.42:8088"
+    REAL_SEARXNG_URL="http://searxng-private-mesh:8080"
     RUN_SEARXNG_ACTION=true
 fi
 
@@ -73,6 +73,9 @@ fi
 echo "======================================================="
 echo "🚀 Executing targeted container orchestration lifecycle..."
 
+# Create a shared custom network bridge for stand-alone container DNS resolution
+docker network create agent-shield-mesh 2>/dev/null || true
+
 # Execute SearXNG Block
 if [ "$RUN_SEARXNG_ACTION" = true ] && [[ "$DEPLOY_SEARXNG" =~ ^[Yy]$ || "$DEPLOY_SEARXNG" == "" ]]; then
     echo "📦 Re-allocating isolated SearXNG Private Mesh container..."
@@ -89,6 +92,8 @@ EOF
     docker rm -f searxng-private-mesh || true
     docker run -d \
       --name searxng-private-mesh \
+      --network agent-shield-mesh \
+      --network-alias searxng-private-mesh \
       -v "$(pwd)/config/searxng:/etc/searxng:ro" \
       -p 8088:8080 \
       --restart always \
@@ -104,10 +109,13 @@ if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
     docker rm -f agent-shield-gateway || true
     docker run -d \
       --name agent-shield-gateway \
+      --network agent-shield-mesh \
+      --network-alias agent-shield-gateway \
       -p 8000:8000 \
       -e SEARCH_PROVIDER=searxng \
       -e REAL_SEARXNG_URL=$REAL_SEARXNG_URL \
-      -e OLLAMA_HOST=http://192.168.2.42:11434 \
+      -e OLLAMA_HOST=http://docker.internal \
+      --add-host "host.docker.internal:host-gateway" \
       --restart always \
       agent-shield:latest
 else
@@ -122,6 +130,7 @@ if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
     mkdir -p ./workspace
     docker run -d \
       --name openclaw-agent-workspace \
+      --network agent-shield-mesh \
       -v "$(pwd)/workspace:/app/workspace" \
       --restart always \
       openclaw-agent:latest
