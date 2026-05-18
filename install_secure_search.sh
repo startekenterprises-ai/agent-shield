@@ -59,9 +59,10 @@ echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> "$ENV_FILE"
 
 # Determine the primary operational model out of the box based on input profiles
 if [ ! -z "$OPENROUTER_API_KEY" ]; then
-    DEFAULT_MODEL="google/gemini-2.5-flash:free"
+    # Upgraded gold standard vision reasoning model to natively pass browser-use DOM tool blocks
+    DEFAULT_MODEL="anthropic/claude-3.5-sonnet"
     DEFAULT_BASE="https://openrouter.ai"
-    echo "🚀 Configuration targeted to: OpenRouter Cloud Free Tier ($DEFAULT_MODEL)"
+    echo "🚀 Configuration targeted to: OpenRouter Cloud Premium Tier ($DEFAULT_MODEL)"
 else
     DEFAULT_MODEL="qwen2.5-coder-7b:128k"
     DEFAULT_BASE="http://docker.internal/v1"
@@ -232,6 +233,9 @@ fi
 cat << EOF > "$STATE_FILE"
 REAL_SEARXNG_URL=$REAL_SEARXNG_URL
 SAVED_EXTERNAL_URL=$SAVED_EXTERNAL_URL
+INSTALLED_SHIELD=true
+INSTALLED_SEARXNG=true
+INSTALLED_OPENCLAW=true
 EOF
 
 echo "======================================================="
