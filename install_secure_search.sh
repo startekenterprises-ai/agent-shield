@@ -5,115 +5,117 @@ STATE_FILE="./.shield_state"
 echo "🛡️  Agent-Shield: Modular AI Security Mesh Installer"
 echo "======================================================="
 
-# Load existing state if it exists to allow individual piece recovery
+# Load saved backend parameters if they exist
 if [ -f "$STATE_FILE" ]; then
     source "$STATE_FILE"
-    echo "🔄 Existing setup detected. Running in Maintenance/Repair mode..."
 else
-    INSTALLED_SHIELD=false
-    INSTALLED_SEARXNG=false
-    INSTALLED_OPENCLAW=false
+    REAL_SEARXNG_URL="http://192.168.2.42:8088"
 fi
 
-# ---------------------------------------------------------------------------
-# Module 1: Agent-Shield Core Security Gateway
-# ---------------------------------------------------------------------------
-if [ "$INSTALLED_SHIELD" = true ]; then
-    read -p "● Agent-Shield Core is already running. Rebuild/Repair it? (y/N): " REPAIR_SHIELD
-else
-    read -p "● Install Agent-Shield Security Firewall Proxy? (Y/n): " INSTALL_SHIELD
-fi
+# Helper function to check if a specific container is running actively
+is_active() {
+    docker ps --format '{{.Names}}' | grep -q "^$1$"
+}
 
 # ---------------------------------------------------------------------------
-# Module 2: Upstream Search Infrastructure (SearXNG)
+# Module 1: SearXNG Private Search Engine
 # ---------------------------------------------------------------------------
-if [ "$INSTALL_SHIELD" != "n" ]; then
-    # AUTOMATED PRE-FLIGHT CHECK: Check if port 8088 or 8080 is already active in Docker
-    if docker ps --format '{{.Names}} {{.Ports}}' | grep -q -E '(searxng-private-mesh|8088|8080)'; then
-        echo "💡 Notice: A local SearXNG instance or bound port was detected active in Docker."
-        read -p "  -> Skip SearXNG installation and use the active running instance? (Y/n): " SKIP_SEARXNG
-        if [[ "$SKIP_SEARXNG" =~ ^[Nn]$ ]]; then
-            read -p "  Enter alternate pre-existing external SearXNG URL: " EXT_URL
-            REAL_SEARXNG_URL=$EXT_URL
-            INSTALL_SEARXNG="n"
-        else
-            REAL_SEARXNG_URL="http://192.168.2.42:8088"
-            INSTALL_SEARXNG="n"
-            REPAIR_SEARXNG="n"
-            INSTALLED_SEARXNG=true
-            echo "✅ Skipping SearXNG container deployment (Using active container)."
-        fi
+echo "--- 📦 MODULE 1: UPSTREAM SEARCH ENGINE ---"
+if is_active "searxng-private-mesh"; then
+    echo "💡 Local SearXNG container is currently RUNNING on port 8088."
+    read -p "❓ Force STOP and REINSTALL Local SearXNG? (y/N): " DEPLOY_SEARXNG
+else
+    read -p "❓ Deploy fresh local SearXNG container inside WSL on port 8088? (Y/n): " DEPLOY_SEARXNG
+fi
+
+# Handle configuration if they reject the local option
+if [[ "$DEPLOY_SEARXNG" =~ ^[Nn]$ ]]; then
+    if [ -z "$SAVED_EXTERNAL_URL" ]; then
+        read -p "  👉 Enter your pre-existing external SearXNG URL (e.g. http://192.168.2.42:8080): " REAL_SEARXNG_URL
     else
-        if [ "$INSTALLED_SEARXNG" = true ]; then
-            read -p "● Local SearXNG Mesh is registered. Rebuild/Repair it? (y/N): " REPAIR_SEARXNG
-        else
-            read -p "● Do you want a fresh, isolated local SearXNG container spun up? (Y/n): " INSTALL_SEARXNG
-            if [[ "$INSTALL_SEARXNG" =~ ^[Nn]$ ]]; then
-                read -p "  Enter your pre-existing external SearXNG URL: " EXT_URL
-                REAL_SEARXNG_URL=$EXT_URL
-            else
-                REAL_SEARXNG_URL="http://192.168.2.42:8088"
-            fi
-        fi
+        read -p "  👉 Enter external SearXNG URL [Default: $SAVED_EXTERNAL_URL]: " NEW_EXT_URL
+        REAL_SEARXNG_URL=${NEW_EXT_URL:-$SAVED_EXTERNAL_URL}
     fi
-fi
-
-# ---------------------------------------------------------------------------
-# Module 3: Hyperconverged Agent Space (OpenClaw)
-# ---------------------------------------------------------------------------
-if [ "$INSTALLED_OPENCLAW" = true ]; then
-    read -p "● OpenClaw Workspace container is already running. Rebuild/Repair it? (y/N): " REPAIR_OPENCLAW
+    SAVED_EXTERNAL_URL=$REAL_SEARXNG_URL
+    RUN_SEARXNG_ACTION=false
 else
-    read -p "● Optional: Bundle in a containerized OpenClaw Agent Workspace? (y/N): " INSTALL_OPENCLAW
+    REAL_SEARXNG_URL="http://192.168.2.42:8088"
+    RUN_SEARXNG_ACTION=true
 fi
 
-echo "======================================================="
-echo "🚀 Deploying and updating execution loops via Native Docker..."
+echo ""
+# ---------------------------------------------------------------------------
+# Module 2: Agent-Shield Security Gateway Core
+# ---------------------------------------------------------------------------
+echo "--- 🛡️  MODULE 2: AGENT-SHIELD FIREWALL CORE ---"
+if is_active "agent-shield-gateway"; then
+    echo "💡 Agent-Shield Core container is currently RUNNING on port 8000."
+    read -p "❓ Force STOP and REINSTALL Agent-Shield Firewall? (y/N): " DEPLOY_SHIELD
+else
+    read -p "❓ Deploy Agent-Shield Security Firewall Proxy on port 8000? (Y/n): " DEPLOY_SHIELD
+fi
 
-# 1. Handle SearXNG Execution
-if [[ "$INSTALL_SEARXNG" =~ ^[Yy]$ || "$INSTALL_SEARXNG" == "" || "$REPAIR_SEARXNG" =~ ^[Yy]$ ]]; then
-    if [ "$INSTALL_SEARXNG" != "n" ]; then
-        echo "📦 Initializing SearXNG Private Mesh on port 8088..."
-        mkdir -p ./config/searxng
-        if [ ! -f ./config/searxng/settings.yml ]; then
-            cat << 'EOF' > ./config/searxng/settings.yml
+echo ""
+# ---------------------------------------------------------------------------
+# Module 3: OpenClaw Agent Workspace Space
+# ---------------------------------------------------------------------------
+echo "--- 🎨 MODULE 3: HYPERCONVERGED AGENT WORKSPACE ---"
+if is_active "openclaw-agent-workspace"; then
+    echo "💡 OpenClaw Workspace container is currently RUNNING."
+    read -p "❓ Force STOP and REINSTALL OpenClaw Workspace? (y/N): " DEPLOY_OPENCLAW
+else
+    read -p "❓ Bundle in a containerized OpenClaw Agent Workspace? (y/N): " DEPLOY_OPENCLAW
+fi
+
+# ===========================================================================
+# Execution Block
+# ===========================================================================
+echo "======================================================="
+echo "🚀 Executing targeted container orchestration lifecycle..."
+
+# Execute SearXNG Block
+if [ "$RUN_SEARXNG_ACTION" = true ] && [[ "$DEPLOY_SEARXNG" =~ ^[Yy]$ || "$DEPLOY_SEARXNG" == "" ]]; then
+    echo "📦 Re-allocating isolated SearXNG Private Mesh container..."
+    mkdir -p ./config/searxng
+    if [ ! -f ./config/searxng/settings.yml ]; then
+        cat << 'EOF' > ./config/searxng/settings.yml
 use_default_settings: true
 server:
   port: 8080
   bind_address: "0.0.0.0"
   secret_key: "agent_shield_super_secure_entropy_salt_key"
 EOF
-        fi
-        docker rm -f searxng-private-mesh || true
-        docker run -d \
-          --name searxng-private-mesh \
-          -v "$(pwd)/config/searxng:/etc/searxng:ro" \
-          -p 8088:8080 \
-          --restart always \
-          searxng/searxng:latest
-        REAL_SEARXNG_URL="http://192.168.2.42:8088"
-        INSTALLED_SEARXNG=true
     fi
+    docker rm -f searxng-private-mesh || true
+    docker run -d \
+      --name searxng-private-mesh \
+      -v "$(pwd)/config/searxng:/etc/searxng:ro" \
+      -p 8088:8080 \
+      --restart always \
+      searxng/searxng:latest
+else
+    echo "➡️  Skipping SearXNG structural changes."
 fi
 
-# 2. Handle Agent-Shield Core Execution
-if [[ "$INSTALL_SHIELD" != "n" || "$REPAIR_SHIELD" =~ ^[Yy]$ ]]; then
-    echo "🛠️  Compiling Agent-Shield Image layers..."
+# Execute Agent-Shield Block
+if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
+    echo "🛠️  Compiling localized Agent-Shield container image layers..."
     docker build -t agent-shield:latest .
     docker rm -f agent-shield-gateway || true
     docker run -d \
       --name agent-shield-gateway \
       -p 8000:8000 \
       -e SEARCH_PROVIDER=searxng \
-      -e REAL_SEARXNG_URL=${REAL_SEARXNG_URL:-http://192.168.2.42:8088} \
+      -e REAL_SEARXNG_URL=$REAL_SEARXNG_URL \
       -e OLLAMA_HOST=http://192.168.2.42:11434 \
       --restart always \
       agent-shield:latest
-    INSTALLED_SHIELD=true
+else
+    echo "➡️  Skipping Agent-Shield Core structural changes."
 fi
 
-# 3. Handle OpenClaw Execution
-if [[ "$INSTALL_OPENCLAW" =~ ^[Yy]$ || "$REPAIR_OPENCLAW" =~ ^[Yy]$ ]]; then
+# Execute OpenClaw Block
+if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
     echo "🎨 Compiling graphics-compliant OpenClaw environment..."
     docker build -t openclaw-agent:latest ./containers/openclaw/
     docker rm -f openclaw-agent-workspace || true
@@ -123,21 +125,20 @@ if [[ "$INSTALL_OPENCLAW" =~ ^[Yy]$ || "$REPAIR_OPENCLAW" =~ ^[Yy]$ ]]; then
       -v "$(pwd)/workspace:/app/workspace" \
       --restart always \
       openclaw-agent:latest
-    INSTALLED_OPENCLAW=true
+else
+    echo "➡️  Skipping OpenClaw Workspace structural changes."
 fi
 
 # ---------------------------------------------------------------------------
-# Save Deployment State Locally
+# Save Current State Parameters Locally
 # ---------------------------------------------------------------------------
 cat << EOF > "$STATE_FILE"
-INSTALLED_SHIELD=$INSTALLED_SHIELD
-INSTALLED_SEARXNG=$INSTALLED_SEARXNG
-INSTALLED_OPENCLAW=$INSTALLED_OPENCLAW
 REAL_SEARXNG_URL=$REAL_SEARXNG_URL
+SAVED_EXTERNAL_URL=$SAVED_EXTERNAL_URL
 EOF
 
 echo "======================================================="
-echo "✅ ARCHITECTURE SYNCHRONIZED SUCCESSFULLY!"
-echo "All modules active and verified via Native Docker engine."
+echo "✅ INFRASTRUCTURE MESH SYNCHRONIZED!"
+echo "Gateway Target upstream address mapping: $REAL_SEARXNG_URL"
 echo "======================================================="
 
