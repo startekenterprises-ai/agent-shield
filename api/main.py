@@ -1,6 +1,7 @@
+import pathlib
 import os
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from agent_shield.engine import ShieldEngine
@@ -96,3 +97,10 @@ async def simulate_exploit(payload: SimulationPayload):
 async def health_check():
     return {"status": "HEALTHY", "ollama_enabled": engine.use_ollama}
 
+
+# --- DASHBOARD UI ---
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard():
+    """Serves the Agent-Shield management dashboard."""
+    dashboard_path = pathlib.Path(__file__).parent / "dashboard.html"
+    return HTMLResponse(content=dashboard_path.read_text())
