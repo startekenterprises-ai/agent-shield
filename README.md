@@ -46,7 +46,7 @@ A scraped page containing hidden text like:
 
 ## 📦 Installation
 
-Agent-Shield uses an **interactive installer** that auto-configures your entire stack. The installer pulls pre-built images from Docker Hub — no manual builds required.
+Agent-Shield uses an **interactive installer** that auto-configures your entire stack in minutes.
 
 ### Prerequisites
 
@@ -62,8 +62,8 @@ Pull the pre-built image and run the interactive installer:
 docker pull startekenterprises/agent-shield:latest
 git clone https://github.com/startekenterprises-ai/agent-shield.git
 cd agent-shield
-chmod +x install_secure_search.sh
-./install_secure_search.sh
+chmod +x install.sh
+./install.sh
 ```
 
 ### Option B — Build From Source
@@ -73,8 +73,8 @@ Clone and build everything locally:
 ```bash
 git clone https://github.com/startekenterprises-ai/agent-shield.git
 cd agent-shield
-chmod +x install_secure_search.sh
-./install_secure_search.sh --build
+chmod +x install.sh
+./install.sh --build
 ```
 
 ---
@@ -109,7 +109,7 @@ Deploys a private, containerized SearXNG instance on port `8088`. All agent web 
 - Already running? The installer detects it and asks if you want to reinstall.
 - Have your own SearXNG instance? Enter your external URL and skip deployment.
 
-> SearXNG pulls automatically from `searxng/searxng:latest` on Docker Hub.
+> Pulls automatically from `searxng/searxng:latest` on Docker Hub.
 
 ---
 
@@ -126,7 +126,7 @@ Deploys the Agent-Shield gateway container on port `8000`. This is the core prox
 - Forwards clean results back to your agent
 - Serves the management dashboard at `http://localhost:8000/dashboard`
 
-> Agent-Shield pulls automatically from `startekenterprises/agent-shield:latest` on Docker Hub.
+> Pulls automatically from `startekenterprises/agent-shield:latest` on Docker Hub.
 
 ---
 
@@ -138,7 +138,7 @@ Deploys the Agent-Shield gateway container on port `8000`. This is the core prox
 
 Optionally deploys a sandboxed OpenClaw browser-use agent pre-wired to route all traffic through Agent-Shield. Useful for testing the full stack or running autonomous coding tasks.
 
-The OpenClaw config is auto-generated based on your LLM selections:
+OpenClaw is built from local source at install time, ensuring it is always correctly wired to your Agent-Shield version. The installer auto-generates the config based on your LLM selections:
 
 ```json
 {
@@ -151,7 +151,15 @@ The OpenClaw config is auto-generated based on your LLM selections:
 }
 ```
 
-> OpenClaw pulls automatically from `startekenterprises/openclaw:latest` on Docker Hub.
+---
+
+### Step 5 — Community Threat Mesh (Optional)
+
+```
+❓ Help improve Agent-Shield by contributing anonymized threat patterns? (y/N):
+```
+
+Opt in to contribute your agent's idle cycles to help improve Agent-Shield's detection patterns. You choose what your agent works on — no data leaves without your explicit consent.
 
 ---
 
@@ -240,7 +248,9 @@ pytest tests/test_core.py
 |---|---|---|---|
 | agent-shield-gateway | `startekenterprises/agent-shield:latest` | 8000 | Docker Hub |
 | searxng-private-mesh | `searxng/searxng:latest` | 8088 | Docker Hub |
-| openclaw-agent-workspace | `startekenterprises/openclaw:latest` | — | Docker Hub |
+| openclaw-agent-workspace | built from `./containers/openclaw/` | — | Local (latest) |
+
+> OpenClaw is built locally at install time to ensure correct wiring with Agent-Shield. To pin to a specific version if a breaking release occurs, update `./containers/openclaw/Dockerfile`.
 
 ---
 
@@ -253,6 +263,7 @@ pytest tests/test_core.py
 - [x] OpenClaw browser-use agent sandbox
 - [x] Regex + semantic dual-pass cleansing
 - [x] Web management dashboard at `/dashboard`
+- [x] Docker Hub distribution
 
 ### v2.0 (Planned)
 - [ ] **Opt-in Community Threat Mesh** — Contribute your agent's idle cycles to help improve detection patterns. During install you choose what your agent works on to improve Agent-Shield for everyone.

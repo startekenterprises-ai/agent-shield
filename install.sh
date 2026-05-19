@@ -7,7 +7,7 @@ echo "🛡️  Agent-Shield: Intelligent AI Security Mesh Installer"
 echo "======================================================="
 
 # ---------------------------------------------------------------------------
-# Pre-Flight Checklist: Environment Key Matrix Generation
+# Pre-Flight: Environment Setup
 # ---------------------------------------------------------------------------
 if [ ! -f "$ENV_FILE" ]; then
     touch "$ENV_FILE"
@@ -82,13 +82,14 @@ is_active() {
 
 # ---------------------------------------------------------------------------
 # Module 1: SearXNG Private Search Engine
+# Pulls from Docker Hub: searxng/searxng:latest
 # ---------------------------------------------------------------------------
 echo "--- 📦 MODULE 1: UPSTREAM SEARCH ENGINE ---"
 if is_active "searxng-private-mesh"; then
     echo "💡 Local SearXNG container is currently RUNNING on port 8088."
     read -p "❓ Force STOP and REINSTALL Local SearXNG? (y/N): " DEPLOY_SEARXNG
 else
-    read -p "❓ Deploy fresh local SearXNG container inside WSL on port 8088? (Y/n): " DEPLOY_SEARXNG
+    read -p "❓ Deploy fresh local SearXNG container on port 8088? (Y/n): " DEPLOY_SEARXNG
 fi
 
 if [[ "$DEPLOY_SEARXNG" =~ ^[Nn]$ ]]; then
@@ -109,6 +110,8 @@ echo ""
 
 # ---------------------------------------------------------------------------
 # Module 2: Agent-Shield Security Gateway
+# Option A (default): Pulls from Docker Hub: startekenterprises/agent-shield:latest
+# Option B (--build): Builds from local source
 # ---------------------------------------------------------------------------
 echo "--- 🛡️  MODULE 2: AGENT-SHIELD FIREWALL CORE ---"
 if is_active "agent-shield-gateway"; then
@@ -122,6 +125,10 @@ echo ""
 
 # ---------------------------------------------------------------------------
 # Module 3: OpenClaw Agent Workspace
+# Always built from local source (./containers/openclaw/) using latest
+# browser-use. This ensures OpenClaw is always wired correctly to your
+# Agent-Shield version. Pin to n-1 in the Dockerfile if a breaking
+# OpenClaw release ever causes issues.
 # ---------------------------------------------------------------------------
 echo "--- 🎨 MODULE 3: HYPERCONVERGED AGENT WORKSPACE ---"
 if is_active "openclaw-agent-workspace"; then
@@ -158,11 +165,9 @@ docker network create agent-shield-mesh 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # Execute Module 1: SearXNG
-# Pulls directly from Docker Hub — searxng/searxng:latest
-# No maintenance required on your end.
 # ---------------------------------------------------------------------------
 if [ "$RUN_SEARXNG_ACTION" = true ] && [[ "$DEPLOY_SEARXNG" =~ ^[Yy]$ || "$DEPLOY_SEARXNG" == "" ]]; then
-    echo "📦 Pulling SearXNG from Docker Hub..."
+    echo "📦 Pulling SearXNG from Docker Hub (searxng/searxng:latest)..."
     mkdir -p ./config/searxng
     if [ ! -f ./config/searxng/settings.yml ]; then
         cat << 'EOF' > ./config/searxng/settings.yml
@@ -189,8 +194,6 @@ fi
 
 # ---------------------------------------------------------------------------
 # Execute Module 2: Agent-Shield Core
-# Option A (default): Pull pre-built image from Docker Hub.
-# Option B (--build): Build from local source.
 # ---------------------------------------------------------------------------
 if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
     docker rm -f agent-shield-gateway || true
@@ -200,7 +203,7 @@ if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
         docker build -t agent-shield:latest .
         SHIELD_IMAGE="agent-shield:latest"
     else
-        echo "📦 Pulling Agent-Shield from Docker Hub..."
+        echo "📦 Pulling Agent-Shield from Docker Hub (startekenterprises/agent-shield:latest)..."
         docker pull startekenterprises/agent-shield:latest
         SHIELD_IMAGE="startekenterprises/agent-shield:latest"
     fi
@@ -225,14 +228,11 @@ fi
 
 # ---------------------------------------------------------------------------
 # Execute Module 3: OpenClaw
-# Always built from pinned local source (./containers/openclaw/).
-# Pinning to a known-good version prevents upstream breaking changes.
-# SearXNG and Agent-Shield are pulled from Docker Hub — OpenClaw is not,
-# because you control the version tested against your stack.
+# Built from local source — always uses latest browser-use unless
+# pinned in ./containers/openclaw/Dockerfile for compatibility.
 # ---------------------------------------------------------------------------
 if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
-    echo "🎨 Building OpenClaw from pinned local source..."
-    echo "   (Pinned build ensures compatibility with this Agent-Shield version)"
+    echo "🎨 Building OpenClaw from local source (latest browser-use)..."
 
     cat << EOF > ./containers/openclaw/openclaw.json
 {
