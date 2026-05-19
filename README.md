@@ -41,6 +41,7 @@ A scraped page containing hidden text like:
 - **Anti-Fingerprinting** — Strips local file paths and config identifiers from search strings, replacing them with randomized padding to prevent upstream profiling.
 - **Private Search Engine** — Bundles a containerized SearXNG instance so your queries never touch Google, Bing, or any cloud search provider directly.
 - **Hyperconverged Agent Sandbox** — Includes an optional OpenClaw browser-use agent workspace for instant, firewalled AI coding tasks.
+- **Multi-Provider LLM Failover** — Cycles through your registered API keys automatically as rate limits are hit, with local Ollama as the final fallback.
 
 ---
 
@@ -51,12 +52,24 @@ Agent-Shield uses an **interactive installer** that auto-configures your entire 
 ### Prerequisites
 
 - Docker installed and running
-- (Optional) [Ollama](https://ollama.com) running locally for GPU-accelerated models
-- (Optional) A free [OpenRouter API key](https://openrouter.ai/workspaces/default/keys) for cloud model fallback
+- (Optional) [Ollama](https://ollama.com) running locally for GPU-accelerated on-device models
+- (Optional) One or more free LLM API keys — see below
+
+### Free LLM API Keys
+
+The installer supports multiple providers and cycles between them automatically as rate limits are hit. All of the following offer **free tiers with no credit card required**:
+
+| Provider | Free Allowance | Sign Up |
+|---|---|---|
+| **OpenRouter** | 30+ free models via one key | [openrouter.ai/sign-up](https://openrouter.ai/sign-up) |
+| **Google AI Studio** | 1,500 requests/day · Gemini Flash | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| **Groq** | Fastest free inference · Llama 70B | [console.groq.com](https://console.groq.com) |
+| **Mistral** | 1B tokens/month · all Mistral models | [console.mistral.ai](https://console.mistral.ai) |
+| **Cerebras** | 1M tokens/day · ultra-fast | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
+
+> **Tip:** Register keys from two or three providers and Agent-Shield's failover engine will cycle between them automatically — giving you effectively unlimited free usage for typical workloads. Local Ollama is always the final fallback if all cloud limits are hit.
 
 ### Option A — Docker Hub (Recommended)
-
-Pull the pre-built image and run the interactive installer:
 
 ```bash
 docker pull startekenterprises/agent-shield:latest
@@ -67,8 +80,6 @@ chmod +x install.sh
 ```
 
 ### Option B — Build From Source
-
-Clone and build everything locally:
 
 ```bash
 git clone https://github.com/startekenterprises-ai/agent-shield.git
@@ -81,27 +92,26 @@ chmod +x install.sh
 
 ## ⚙️ Interactive Installer Walkthrough
 
-The installer guides you through three modules:
-
 ### Step 1 — LLM Backend Registration
 
-The installer detects your available AI backends and auto-configures failover:
+The installer walks you through registering each provider you have keys for:
 
 ```
 ❓ Do you run a local Ollama instance on this host system? (y/N):
+🔑 Paste your OpenRouter API Key (or Enter to skip):
+🔑 Paste your Google Gemini API Key (or Enter to skip):
+🔑 Paste your Groq API Key (or Enter to skip):
+🔑 Paste your Mistral API Key (or Enter to skip):
 ```
 
-- **Yes** → Routes to your local Ollama instance via host gateway. No API credits needed.
-- **No** → Prompts for an OpenRouter API key to use cloud models (default: `claude-3.5-sonnet`).
-
-> If neither is configured, it defaults to local Ollama with `qwen2.5-coder-7b:128k`.
+OpenClaw is automatically configured to cycle through all registered providers in priority order, falling back to local Ollama last.
 
 ---
 
 ### Step 2 — SearXNG Private Search Engine (Module 1)
 
 ```
-❓ Deploy fresh local SearXNG container on port 8088? (Y/n):
+❓ Deploy local SearXNG private search container on port 8088? (Y/n):
 ```
 
 Deploys a private, containerized SearXNG instance on port `8088`. All agent web searches route through this — your queries never touch a cloud search provider directly.
@@ -116,7 +126,7 @@ Deploys a private, containerized SearXNG instance on port `8088`. All agent web 
 ### Step 3 — Agent-Shield Firewall Core (Module 2)
 
 ```
-❓ Deploy Agent-Shield Security Firewall Proxy on port 8000? (Y/n):
+❓ Deploy Agent-Shield Security Firewall on port 8000? (Y/n):
 ```
 
 Deploys the Agent-Shield gateway container on port `8000`. This is the core proxy that:
@@ -136,17 +146,15 @@ Deploys the Agent-Shield gateway container on port `8000`. This is the core prox
 ❓ Bundle in a containerized OpenClaw Agent Workspace? (y/N):
 ```
 
-Optionally deploys a sandboxed OpenClaw browser-use agent pre-wired to route all traffic through Agent-Shield. Useful for testing the full stack or running autonomous coding tasks.
-
-OpenClaw is built from local source at install time, ensuring it is always correctly wired to your Agent-Shield version. The installer auto-generates the config based on your LLM selections:
+Deploys a sandboxed OpenClaw browser-use agent pre-wired to route all traffic through Agent-Shield. OpenClaw is built from local source at install time with your full provider failover config baked in.
 
 ```json
 {
   "search": { "api_base": "http://agent-shield-gateway:8000/search" },
   "llm": {
     "provider": "openai_compatible",
-    "api_base": "https://openrouter.ai",
-    "model": "anthropic/claude-3.5-sonnet"
+    "model": "anthropic/claude-3.5-sonnet",
+    "failover_providers": ["google", "groq", "mistral", "ollama"]
   }
 }
 ```
@@ -159,7 +167,7 @@ OpenClaw is built from local source at install time, ensuring it is always corre
 ❓ Help improve Agent-Shield by contributing anonymized threat patterns? (y/N):
 ```
 
-Opt in to contribute your agent's idle cycles to help improve Agent-Shield's detection patterns. You choose what your agent works on — no data leaves without your explicit consent.
+Opt in to contribute your agent's idle cycles to help improve Agent-Shield's detection patterns. You choose exactly what your agent works on — no data leaves without your explicit consent.
 
 ---
 
@@ -186,15 +194,11 @@ The dashboard gives you full visibility and control over your Agent-Shield mesh:
 
 ### Open WebUI / AnythingLLM
 
-Point your web search integration to the Agent-Shield proxy:
-
 ```env
 SEARXNG_URL=http://localhost:8000
 ```
 
 ### Cursor / VS Code / Claude Code
-
-Override your editor's API base URL to route code context through the DLP pipeline:
 
 - **Base URL**: `http://localhost:8000/v1`
 - **API Key**: `sk-agent-shield-secured-token`
@@ -202,8 +206,6 @@ Override your editor's API base URL to route code context through the DLP pipeli
 ---
 
 ## 🔬 Verify Your Installation
-
-Shell into the OpenClaw sandbox and run the test loop:
 
 ```bash
 # Enter the live sandbox container
@@ -231,12 +233,9 @@ python workspace/agent_vibe_runner.py
 ## 🛠️ Local Development & Testing
 
 ```bash
-# Set up your virtual environment
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-# Run the test suite
 pytest tests/test_core.py
 ```
 
@@ -257,7 +256,7 @@ pytest tests/test_core.py
 ## 🗺️ Roadmap
 
 ### v1.x (Current)
-- [x] Interactive installer with Ollama + OpenRouter failover
+- [x] Interactive installer with multi-provider LLM failover
 - [x] SearXNG private search container
 - [x] Agent-Shield DLP + injection firewall proxy
 - [x] OpenClaw browser-use agent sandbox
@@ -266,7 +265,7 @@ pytest tests/test_core.py
 - [x] Docker Hub distribution
 
 ### v2.0 (Planned)
-- [ ] **Opt-in Community Threat Mesh** — Contribute your agent's idle cycles to help improve detection patterns. During install you choose what your agent works on to improve Agent-Shield for everyone.
+- [ ] **Opt-in Community Threat Mesh** — Contribute your agent's idle cycles to improve detection patterns. Choose what your agent works on during install.
 - [ ] **Telegram Scrum Master** — Control your entire container cluster from your phone.
 - [ ] **Decentralized Contributor Loop** — Community agents submit regex improvements and PRs back to this repo via lint-guarded GitHub Actions.
 

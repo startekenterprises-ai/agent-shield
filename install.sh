@@ -29,48 +29,147 @@ if [[ "$1" == "--build" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# INTERACTIVE KEY INTERCEPT ENGINE (Auto-configures LLM Failovers)
+# LLM BACKEND REGISTRATION
+# Supports: Local Ollama + OpenRouter + Google Gemini + Groq + Mistral
+# OpenClaw will cycle through available keys in order, falling back as
+# rate limits are hit. Ollama always acts as final local fallback.
 # ---------------------------------------------------------------------------
-echo "--- 🔑 LLM BACKEND PROVIDER REGISTRATION MATRIX ---"
+echo ""
+echo "--- 🔑 LLM BACKEND PROVIDER REGISTRATION ---"
+echo ""
+echo "Agent-Shield supports multiple free LLM providers and cycles between"
+echo "them automatically as rate limits are reached. Register as many or as"
+echo "few as you like. Local Ollama (if available) is always the final fallback."
+echo ""
+echo "Free API key signup links (no credit card required):"
+echo "  🌐 OpenRouter  → https://openrouter.ai/sign-up          (30+ free models)"
+echo "  🌐 Google      → https://aistudio.google.com/apikey     (1,500 req/day, Gemini Flash)"
+echo "  🌐 Groq        → https://console.groq.com               (fastest free inference)"
+echo "  🌐 Mistral     → https://console.mistral.ai             (1B tokens/month free)"
+echo "  🌐 Cerebras    → https://cloud.cerebras.ai              (1M tokens/day free)"
+echo ""
 
-# Step A: Local Ollama Inspection
+# Step A: Local Ollama
 read -p "❓ Do you run a local Ollama instance on this host system? (y/N): " HAS_OLLAMA
 if [[ "$HAS_OLLAMA" =~ ^[Yy]$ ]]; then
     OLLAMA_TARGET="http://docker.internal"
-    echo "✅ Local Ollama route mapped to host gateway link."
+    echo "✅ Local Ollama mapped — will be used as final fallback."
 else
     OLLAMA_TARGET=""
+    echo "➡️  Skipping Ollama."
 fi
+echo ""
 
-# Step B: OpenRouter Cloud Fallback Loop
-if grep -q "OPENROUTER_API_KEY=" "$ENV_FILE" && [ ! -z "$(grep "OPENROUTER_API_KEY=" "$ENV_FILE" | cut -d'=' -f2)" ]; then
-    CURRENT_KEY=$(grep "OPENROUTER_API_KEY=" "$ENV_FILE" | cut -d'=' -f2)
-    echo "💡 Active OpenRouter API Token detected in local environment configuration."
-    read -p "❓ Do you want to update or replace this OpenRouter token? (y/N): " CHANGE_KEY
+# Step B: OpenRouter
+_load_existing_key() {
+    local key_name="$1"
+    if grep -q "^${key_name}=" "$ENV_FILE" 2>/dev/null; then
+        grep "^${key_name}=" "$ENV_FILE" | cut -d'=' -f2
+    fi
+}
+
+OPENROUTER_API_KEY=$(_load_existing_key "OPENROUTER_API_KEY")
+if [ ! -z "$OPENROUTER_API_KEY" ]; then
+    echo "💡 OpenRouter key already configured."
+    read -p "❓ Replace OpenRouter API key? (y/N): " CHANGE_KEY
     if [[ "$CHANGE_KEY" =~ ^[Yy]$ ]]; then
-        echo "🌐 Navigate to your browser context and generate a free API token:"
-        echo "   👉 https://openrouter.ai/workspaces/default/keys"
-        read -p "🔑 Paste your OpenRouter API Key: " OPENROUTER_API_KEY
-    else
-        OPENROUTER_API_KEY=$CURRENT_KEY
+        read -p "🔑 Paste new OpenRouter API Key: " OPENROUTER_API_KEY
     fi
 else
-    echo "🌐 To run high-end reasoning without a GPU, generate a free API token:"
-    echo "   👉 https://openrouter.ai/workspaces/default/keys"
-    read -p "🔑 Paste your OpenRouter API Key (or hit Enter to skip): " OPENROUTER_API_KEY
+    echo "OpenRouter gives you 30+ free models through a single key."
+    echo "Sign up free at: https://openrouter.ai/sign-up"
+    read -p "🔑 Paste your OpenRouter API Key (or Enter to skip): " OPENROUTER_API_KEY
 fi
+echo ""
 
-sed -i '/OPENROUTER_API_KEY=/d' "$ENV_FILE" 2>/dev/null || true
-echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> "$ENV_FILE"
+# Step C: Google Gemini (AI Studio)
+GOOGLE_API_KEY=$(_load_existing_key "GOOGLE_API_KEY")
+if [ ! -z "$GOOGLE_API_KEY" ]; then
+    echo "💡 Google Gemini key already configured."
+    read -p "❓ Replace Google Gemini API key? (y/N): " CHANGE_GKEY
+    if [[ "$CHANGE_GKEY" =~ ^[Yy]$ ]]; then
+        read -p "🔑 Paste new Google Gemini API Key: " GOOGLE_API_KEY
+    fi
+else
+    echo "Google AI Studio gives you 1,500 free requests/day on Gemini Flash."
+    echo "Sign up free at: https://aistudio.google.com/apikey"
+    read -p "🔑 Paste your Google Gemini API Key (or Enter to skip): " GOOGLE_API_KEY
+fi
+echo ""
 
+# Step D: Groq
+GROQ_API_KEY=$(_load_existing_key "GROQ_API_KEY")
+if [ ! -z "$GROQ_API_KEY" ]; then
+    echo "💡 Groq key already configured."
+    read -p "❓ Replace Groq API key? (y/N): " CHANGE_GROQKEY
+    if [[ "$CHANGE_GROQKEY" =~ ^[Yy]$ ]]; then
+        read -p "🔑 Paste new Groq API Key: " GROQ_API_KEY
+    fi
+else
+    echo "Groq is the fastest free LLM API — 300+ tokens/sec on Llama 70B."
+    echo "Sign up free at: https://console.groq.com"
+    read -p "🔑 Paste your Groq API Key (or Enter to skip): " GROQ_API_KEY
+fi
+echo ""
+
+# Step E: Mistral
+MISTRAL_API_KEY=$(_load_existing_key "MISTRAL_API_KEY")
+if [ ! -z "$MISTRAL_API_KEY" ]; then
+    echo "💡 Mistral key already configured."
+    read -p "❓ Replace Mistral API key? (y/N): " CHANGE_MKEY
+    if [[ "$CHANGE_MKEY" =~ ^[Yy]$ ]]; then
+        read -p "🔑 Paste new Mistral API Key: " MISTRAL_API_KEY
+    fi
+else
+    echo "Mistral gives you 1B free tokens/month across all Mistral models."
+    echo "Sign up free at: https://console.mistral.ai"
+    read -p "🔑 Paste your Mistral API Key (or Enter to skip): " MISTRAL_API_KEY
+fi
+echo ""
+
+# Persist all keys to .env
+for key in OPENROUTER_API_KEY GOOGLE_API_KEY GROQ_API_KEY MISTRAL_API_KEY; do
+    sed -i "/^${key}=/d" "$ENV_FILE" 2>/dev/null || true
+done
+[ ! -z "$OPENROUTER_API_KEY" ] && echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> "$ENV_FILE"
+[ ! -z "$GOOGLE_API_KEY" ]     && echo "GOOGLE_API_KEY=$GOOGLE_API_KEY"         >> "$ENV_FILE"
+[ ! -z "$GROQ_API_KEY" ]       && echo "GROQ_API_KEY=$GROQ_API_KEY"             >> "$ENV_FILE"
+[ ! -z "$MISTRAL_API_KEY" ]    && echo "MISTRAL_API_KEY=$MISTRAL_API_KEY"       >> "$ENV_FILE"
+
+# ---------------------------------------------------------------------------
+# Determine primary model and base URL for OpenClaw config
+# Priority: OpenRouter → Google → Groq → Mistral → Ollama
+# ---------------------------------------------------------------------------
 if [ ! -z "$OPENROUTER_API_KEY" ]; then
     DEFAULT_MODEL="anthropic/claude-3.5-sonnet"
-    DEFAULT_BASE="https://openrouter.ai"
-    echo "🚀 Configuration targeted to: OpenRouter Cloud Premium Tier ($DEFAULT_MODEL)"
-else
+    DEFAULT_BASE="https://openrouter.ai/api/v1"
+    DEFAULT_KEY="$OPENROUTER_API_KEY"
+    echo "🚀 Primary: OpenRouter → claude-3.5-sonnet"
+elif [ ! -z "$GOOGLE_API_KEY" ]; then
+    DEFAULT_MODEL="gemini-2.0-flash"
+    DEFAULT_BASE="https://generativelanguage.googleapis.com/v1beta/openai"
+    DEFAULT_KEY="$GOOGLE_API_KEY"
+    echo "🚀 Primary: Google AI Studio → gemini-2.0-flash"
+elif [ ! -z "$GROQ_API_KEY" ]; then
+    DEFAULT_MODEL="llama-3.3-70b-versatile"
+    DEFAULT_BASE="https://api.groq.com/openai/v1"
+    DEFAULT_KEY="$GROQ_API_KEY"
+    echo "🚀 Primary: Groq → llama-3.3-70b-versatile"
+elif [ ! -z "$MISTRAL_API_KEY" ]; then
+    DEFAULT_MODEL="mistral-small-latest"
+    DEFAULT_BASE="https://api.mistral.ai/v1"
+    DEFAULT_KEY="$MISTRAL_API_KEY"
+    echo "🚀 Primary: Mistral → mistral-small-latest"
+elif [ ! -z "$OLLAMA_TARGET" ]; then
     DEFAULT_MODEL="qwen2.5-coder-7b:128k"
-    DEFAULT_BASE="http://docker.internal/v1"
-    echo "🚀 Configuration targeted to: Local Ollama Engine Pipeline ($DEFAULT_MODEL)"
+    DEFAULT_BASE="$OLLAMA_TARGET/v1"
+    DEFAULT_KEY="ollama"
+    echo "🚀 Primary: Local Ollama → qwen2.5-coder-7b:128k"
+else
+    echo "⚠️  No LLM provider configured. OpenClaw will run in search-only mode."
+    DEFAULT_MODEL=""
+    DEFAULT_BASE=""
+    DEFAULT_KEY=""
 fi
 
 echo ""
@@ -86,17 +185,17 @@ is_active() {
 # ---------------------------------------------------------------------------
 echo "--- 📦 MODULE 1: UPSTREAM SEARCH ENGINE ---"
 if is_active "searxng-private-mesh"; then
-    echo "💡 Local SearXNG container is currently RUNNING on port 8088."
-    read -p "❓ Force STOP and REINSTALL Local SearXNG? (y/N): " DEPLOY_SEARXNG
+    echo "💡 SearXNG is currently RUNNING on port 8088."
+    read -p "❓ Force STOP and REINSTALL SearXNG? (y/N): " DEPLOY_SEARXNG
 else
-    read -p "❓ Deploy fresh local SearXNG container on port 8088? (Y/n): " DEPLOY_SEARXNG
+    read -p "❓ Deploy local SearXNG private search container on port 8088? (Y/n): " DEPLOY_SEARXNG
 fi
 
 if [[ "$DEPLOY_SEARXNG" =~ ^[Nn]$ ]]; then
     if [ -z "$SAVED_EXTERNAL_URL" ]; then
-        read -p "  👉 Enter your pre-existing external SearXNG URL (e.g. http://192.168.2.42:8080): " REAL_SEARXNG_URL
+        read -p "  👉 Enter your existing SearXNG URL (e.g. http://192.168.2.42:8080): " REAL_SEARXNG_URL
     else
-        read -p "  👉 Enter external SearXNG URL [Default: $SAVED_EXTERNAL_URL]: " NEW_EXT_URL
+        read -p "  👉 SearXNG URL [Default: $SAVED_EXTERNAL_URL]: " NEW_EXT_URL
         REAL_SEARXNG_URL=${NEW_EXT_URL:-$SAVED_EXTERNAL_URL}
     fi
     SAVED_EXTERNAL_URL=$REAL_SEARXNG_URL
@@ -110,30 +209,28 @@ echo ""
 
 # ---------------------------------------------------------------------------
 # Module 2: Agent-Shield Security Gateway
-# Option A (default): Pulls from Docker Hub: startekenterprises/agent-shield:latest
-# Option B (--build): Builds from local source
+# Default: Pull from Docker Hub startekenterprises/agent-shield:latest
+# --build flag: Build from local source
 # ---------------------------------------------------------------------------
 echo "--- 🛡️  MODULE 2: AGENT-SHIELD FIREWALL CORE ---"
 if is_active "agent-shield-gateway"; then
-    echo "💡 Agent-Shield Core container is currently RUNNING on port 8000."
-    read -p "❓ Force STOP and REINSTALL Agent-Shield Firewall? (y/N): " DEPLOY_SHIELD
+    echo "💡 Agent-Shield is currently RUNNING on port 8000."
+    read -p "❓ Force STOP and REINSTALL Agent-Shield? (y/N): " DEPLOY_SHIELD
 else
-    read -p "❓ Deploy Agent-Shield Security Firewall Proxy on port 8000? (Y/n): " DEPLOY_SHIELD
+    read -p "❓ Deploy Agent-Shield Security Firewall on port 8000? (Y/n): " DEPLOY_SHIELD
 fi
 
 echo ""
 
 # ---------------------------------------------------------------------------
 # Module 3: OpenClaw Agent Workspace
-# Always built from local source (./containers/openclaw/) using latest
-# browser-use. This ensures OpenClaw is always wired correctly to your
-# Agent-Shield version. Pin to n-1 in the Dockerfile if a breaking
-# OpenClaw release ever causes issues.
+# Built from local source (./containers/openclaw/) using latest browser-use.
+# Wired to cycle through all configured LLM providers on rate limit hits.
 # ---------------------------------------------------------------------------
 echo "--- 🎨 MODULE 3: HYPERCONVERGED AGENT WORKSPACE ---"
 if is_active "openclaw-agent-workspace"; then
-    echo "💡 OpenClaw Workspace container is currently RUNNING."
-    read -p "❓ Force STOP and REINSTALL OpenClaw Workspace? (y/N): " DEPLOY_OPENCLAW
+    echo "💡 OpenClaw Workspace is currently RUNNING."
+    read -p "❓ Force STOP and REINSTALL OpenClaw? (y/N): " DEPLOY_OPENCLAW
 else
     read -p "❓ Bundle in a containerized OpenClaw Agent Workspace? (y/N): " DEPLOY_OPENCLAW
 fi
@@ -145,7 +242,7 @@ echo ""
 echo "--- 🤝 OPTIONAL: COMMUNITY THREAT MESH ---"
 read -p "❓ Help improve Agent-Shield by contributing anonymized threat patterns? (y/N): " CONTRIBUTE
 if [[ "$CONTRIBUTE" =~ ^[Yy]$ ]]; then
-    echo "What would you like your agent to work on to improve Agent-Shield?"
+    echo "What would you like your agent to work on?"
     echo "  1) Hunt for new prompt injection patterns"
     echo "  2) Test DLP evasion signatures"
     echo "  3) Expand regex detection coverage"
@@ -158,8 +255,9 @@ fi
 # ===========================================================================
 # Orchestration Pipeline Execution
 # ===========================================================================
+echo ""
 echo "======================================================="
-echo "🚀 Executing targeted container orchestration lifecycle..."
+echo "🚀 Executing container orchestration..."
 
 docker network create agent-shield-mesh 2>/dev/null || true
 
@@ -167,7 +265,7 @@ docker network create agent-shield-mesh 2>/dev/null || true
 # Execute Module 1: SearXNG
 # ---------------------------------------------------------------------------
 if [ "$RUN_SEARXNG_ACTION" = true ] && [[ "$DEPLOY_SEARXNG" =~ ^[Yy]$ || "$DEPLOY_SEARXNG" == "" ]]; then
-    echo "📦 Pulling SearXNG from Docker Hub (searxng/searxng:latest)..."
+    echo "📦 Pulling SearXNG from Docker Hub..."
     mkdir -p ./config/searxng
     if [ ! -f ./config/searxng/settings.yml ]; then
         cat << 'EOF' > ./config/searxng/settings.yml
@@ -203,7 +301,7 @@ if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
         docker build -t agent-shield:latest .
         SHIELD_IMAGE="agent-shield:latest"
     else
-        echo "📦 Pulling Agent-Shield from Docker Hub (startekenterprises/agent-shield:latest)..."
+        echo "📦 Pulling Agent-Shield from Docker Hub..."
         docker pull startekenterprises/agent-shield:latest
         SHIELD_IMAGE="startekenterprises/agent-shield:latest"
     fi
@@ -215,7 +313,7 @@ if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
       -p 8000:8000 \
       -e SEARCH_PROVIDER=searxng \
       -e REAL_SEARXNG_URL=$REAL_SEARXNG_URL \
-      -e OLLAMA_HOST=http://docker.internal \
+      -e OLLAMA_HOST=${OLLAMA_TARGET:-""} \
       --add-host "host.docker.internal:host-gateway" \
       --restart always \
       $SHIELD_IMAGE
@@ -228,11 +326,84 @@ fi
 
 # ---------------------------------------------------------------------------
 # Execute Module 3: OpenClaw
-# Built from local source — always uses latest browser-use unless
-# pinned in ./containers/openclaw/Dockerfile for compatibility.
+# Generates a multi-provider failover config so OpenClaw cycles through
+# all registered API keys before falling back to local Ollama.
 # ---------------------------------------------------------------------------
 if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
-    echo "🎨 Building OpenClaw from local source (latest browser-use)..."
+    echo "🎨 Building OpenClaw from local source..."
+
+    # Build provider list for failover cycling
+    PROVIDERS_JSON="[]"
+
+    if [ ! -z "$OPENROUTER_API_KEY" ]; then
+        PROVIDERS_JSON=$(echo "$PROVIDERS_JSON" | python3 -c "
+import sys, json
+providers = json.load(sys.stdin)
+providers.append({
+    'name': 'openrouter',
+    'api_base': 'https://openrouter.ai/api/v1',
+    'api_key': '$OPENROUTER_API_KEY',
+    'model': 'anthropic/claude-3.5-sonnet'
+})
+print(json.dumps(providers))
+")
+    fi
+
+    if [ ! -z "$GOOGLE_API_KEY" ]; then
+        PROVIDERS_JSON=$(echo "$PROVIDERS_JSON" | python3 -c "
+import sys, json
+providers = json.load(sys.stdin)
+providers.append({
+    'name': 'google',
+    'api_base': 'https://generativelanguage.googleapis.com/v1beta/openai',
+    'api_key': '$GOOGLE_API_KEY',
+    'model': 'gemini-2.0-flash'
+})
+print(json.dumps(providers))
+")
+    fi
+
+    if [ ! -z "$GROQ_API_KEY" ]; then
+        PROVIDERS_JSON=$(echo "$PROVIDERS_JSON" | python3 -c "
+import sys, json
+providers = json.load(sys.stdin)
+providers.append({
+    'name': 'groq',
+    'api_base': 'https://api.groq.com/openai/v1',
+    'api_key': '$GROQ_API_KEY',
+    'model': 'llama-3.3-70b-versatile'
+})
+print(json.dumps(providers))
+")
+    fi
+
+    if [ ! -z "$MISTRAL_API_KEY" ]; then
+        PROVIDERS_JSON=$(echo "$PROVIDERS_JSON" | python3 -c "
+import sys, json
+providers = json.load(sys.stdin)
+providers.append({
+    'name': 'mistral',
+    'api_base': 'https://api.mistral.ai/v1',
+    'api_key': '$MISTRAL_API_KEY',
+    'model': 'mistral-small-latest'
+})
+print(json.dumps(providers))
+")
+    fi
+
+    if [ ! -z "$OLLAMA_TARGET" ]; then
+        PROVIDERS_JSON=$(echo "$PROVIDERS_JSON" | python3 -c "
+import sys, json
+providers = json.load(sys.stdin)
+providers.append({
+    'name': 'ollama',
+    'api_base': '$OLLAMA_TARGET/v1',
+    'api_key': 'ollama',
+    'model': 'qwen2.5-coder-7b:128k'
+})
+print(json.dumps(providers))
+")
+    fi
 
     cat << EOF > ./containers/openclaw/openclaw.json
 {
@@ -251,9 +422,10 @@ if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
   "llm": {
     "provider": "openai_compatible",
     "api_base": "$DEFAULT_BASE",
+    "api_key": "$DEFAULT_KEY",
     "model": "$DEFAULT_MODEL",
     "temperature": 0.0,
-    "fallback_ollama_base": "$OLLAMA_TARGET"
+    "failover_providers": $PROVIDERS_JSON
   }
 }
 EOF
@@ -267,11 +439,14 @@ EOF
       --network agent-shield-mesh \
       -v "$(pwd)/workspace:/app/workspace" \
       -e OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
+      -e GOOGLE_API_KEY="$GOOGLE_API_KEY" \
+      -e GROQ_API_KEY="$GROQ_API_KEY" \
+      -e MISTRAL_API_KEY="$MISTRAL_API_KEY" \
       --add-host "host.docker.internal:host-gateway" \
       --restart always \
       openclaw-agent:latest
 
-    echo "✅ OpenClaw workspace running"
+    echo "✅ OpenClaw workspace running with $(echo $PROVIDERS_JSON | python3 -c "import sys,json; print(len(json.load(sys.stdin)))") provider(s) configured"
 else
     echo "➡️  Skipping OpenClaw Workspace deployment."
 fi
