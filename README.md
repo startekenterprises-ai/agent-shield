@@ -4,6 +4,12 @@ An open-source, **local-first Privacy Gateway, Security Mesh & Injection Firewal
 
 Agent-Shield sits as a proxy barrier between your AI agent workspaces (`Cursor`, `Claude Code`, `OpenClaw`, `Open WebUI`, `AnythingLLM`) and the internet — scrubbing malicious injections *coming in* from web crawls, and blocking your API keys and source code from leaking *out*.
 
+## 🖥️ Dashboard Preview
+
+[![Agent-Shield Dashboard](docs/dashboard-preview.png)](https://htmlpreview.github.io/?https://github.com/startekenterprises-ai/agent-shield/blob/main/docs/dashboard-demo.html)
+
+> Click the image to launch the live interactive demo — no install required.
+
 ---
 
 ## 🎯 The Problem: Your AI Agent Is a Data Leak
