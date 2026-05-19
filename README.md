@@ -4,6 +4,13 @@ An open-source, **local-first Privacy Gateway, Security Mesh & Injection Firewal
 
 Agent-Shield sits as a proxy barrier between your AI agent workspaces (`Cursor`, `Claude Code`, `OpenClaw`, `Open WebUI`, `AnythingLLM`) and the internet — scrubbing malicious injections *coming in* from web crawls, and blocking your API keys and source code from leaking *out*.
 
+[![Docker Pulls](https://img.shields.io/docker/pulls/startekenterprises/agent-shield)](https://hub.docker.com/r/startekenterprises/agent-shield)
+[![Docker Image Version](https://img.shields.io/docker/v/startekenterprises/agent-shield)](https://hub.docker.com/r/startekenterprises/agent-shield)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/startekenterprises-ai/agent-shield)](https://github.com/startekenterprises-ai/agent-shield)
+
+---
+
 ## 🖥️ Dashboard Preview
 
 [![Agent-Shield Dashboard](docs/dashboard-preview.png)](https://htmlpreview.github.io/?https://github.com/startekenterprises-ai/agent-shield/blob/main/docs/dashboard-demo.html)
@@ -39,7 +46,7 @@ A scraped page containing hidden text like:
 
 ## 📦 Installation
 
-Agent-Shield uses an **interactive installer** that auto-configures your entire stack based on your local setup. No manual config files required.
+Agent-Shield uses an **interactive installer** that auto-configures your entire stack. The installer pulls pre-built images from Docker Hub — no manual builds required.
 
 ### Prerequisites
 
@@ -47,13 +54,27 @@ Agent-Shield uses an **interactive installer** that auto-configures your entire 
 - (Optional) [Ollama](https://ollama.com) running locally for GPU-accelerated models
 - (Optional) A free [OpenRouter API key](https://openrouter.ai/workspaces/default/keys) for cloud model fallback
 
-### Run the Installer
+### Option A — Docker Hub (Recommended)
+
+Pull the pre-built image and run the interactive installer:
+
+```bash
+docker pull startekenterprises/agent-shield:latest
+git clone https://github.com/startekenterprises-ai/agent-shield.git
+cd agent-shield
+chmod +x install_secure_search.sh
+./install_secure_search.sh
+```
+
+### Option B — Build From Source
+
+Clone and build everything locally:
 
 ```bash
 git clone https://github.com/startekenterprises-ai/agent-shield.git
 cd agent-shield
 chmod +x install_secure_search.sh
-./install_secure_search.sh
+./install_secure_search.sh --build
 ```
 
 ---
@@ -88,6 +109,8 @@ Deploys a private, containerized SearXNG instance on port `8088`. All agent web 
 - Already running? The installer detects it and asks if you want to reinstall.
 - Have your own SearXNG instance? Enter your external URL and skip deployment.
 
+> SearXNG pulls automatically from `searxng/searxng:latest` on Docker Hub.
+
 ---
 
 ### Step 3 — Agent-Shield Firewall Core (Module 2)
@@ -96,11 +119,14 @@ Deploys a private, containerized SearXNG instance on port `8088`. All agent web 
 ❓ Deploy Agent-Shield Security Firewall Proxy on port 8000? (Y/n):
 ```
 
-Builds and deploys the Agent-Shield gateway container on port `8000`. This is the core proxy that:
+Deploys the Agent-Shield gateway container on port `8000`. This is the core proxy that:
 - Receives all search requests from your agent
 - Scrubs inbound content for injections
 - Blocks outbound data leaks
 - Forwards clean results back to your agent
+- Serves the management dashboard at `http://localhost:8000/dashboard`
+
+> Agent-Shield pulls automatically from `startekenterprises/agent-shield:latest` on Docker Hub.
 
 ---
 
@@ -124,6 +150,27 @@ The OpenClaw config is auto-generated based on your LLM selections:
   }
 }
 ```
+
+> OpenClaw pulls automatically from `startekenterprises/openclaw:latest` on Docker Hub.
+
+---
+
+## 🖥️ Management Dashboard
+
+Once running, open your browser and navigate to:
+
+```
+http://localhost:8000/dashboard
+```
+
+The dashboard gives you full visibility and control over your Agent-Shield mesh:
+
+- **Overview** — Live stats: injections blocked, requests proxied, DLP events, latency
+- **Container Mesh** — Start, stop, and restart each container from the UI
+- **Event Log** — Filterable real-time security event feed
+- **Agent Runner** — Send tasks directly to OpenClaw and watch execution through the proxy
+- **DLP Rules** — Add, toggle, and monitor your regex detection patterns
+- **Settings** — Switch LLM backends, update API keys, toggle security layers
 
 ---
 
@@ -187,6 +234,16 @@ pytest tests/test_core.py
 
 ---
 
+## 🐳 Container Summary
+
+| Container | Image | Port | Source |
+|---|---|---|---|
+| agent-shield-gateway | `startekenterprises/agent-shield:latest` | 8000 | Docker Hub |
+| searxng-private-mesh | `searxng/searxng:latest` | 8088 | Docker Hub |
+| openclaw-agent-workspace | `startekenterprises/openclaw:latest` | — | Docker Hub |
+
+---
+
 ## 🗺️ Roadmap
 
 ### v1.x (Current)
@@ -195,6 +252,7 @@ pytest tests/test_core.py
 - [x] Agent-Shield DLP + injection firewall proxy
 - [x] OpenClaw browser-use agent sandbox
 - [x] Regex + semantic dual-pass cleansing
+- [x] Web management dashboard at `/dashboard`
 
 ### v2.0 (Planned)
 - [ ] **Opt-in Community Threat Mesh** — Contribute your agent's idle cycles to help improve detection patterns. During install you choose what your agent works on to improve Agent-Shield for everyone.

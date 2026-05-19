@@ -9,16 +9,23 @@ echo "======================================================="
 # ---------------------------------------------------------------------------
 # Pre-Flight Checklist: Environment Key Matrix Generation
 # ---------------------------------------------------------------------------
-# Create a default .env file if it is missing
 if [ ! -f "$ENV_FILE" ]; then
     touch "$ENV_FILE"
 fi
 
-# Load existing environment state variables safely
 if [ -f "$STATE_FILE" ]; then
     source "$STATE_FILE"
 else
     REAL_SEARXNG_URL="http://searxng-private-mesh:8080"
+fi
+
+# ---------------------------------------------------------------------------
+# Build mode flag — pass --build to skip Docker Hub pull and build locally
+# ---------------------------------------------------------------------------
+BUILD_FROM_SOURCE=false
+if [[ "$1" == "--build" ]]; then
+    BUILD_FROM_SOURCE=true
+    echo "🔧 Build-from-source mode enabled."
 fi
 
 # ---------------------------------------------------------------------------
@@ -53,13 +60,10 @@ else
     read -p "🔑 Paste your OpenRouter API Key (or hit Enter to skip): " OPENROUTER_API_KEY
 fi
 
-# Synchronize runtime parameters into your hidden project environment config
 sed -i '/OPENROUTER_API_KEY=/d' "$ENV_FILE" 2>/dev/null || true
 echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> "$ENV_FILE"
 
-# Determine the primary operational model out of the box based on input profiles
 if [ ! -z "$OPENROUTER_API_KEY" ]; then
-    # Upgraded gold standard vision reasoning model to natively pass browser-use DOM tool blocks
     DEFAULT_MODEL="anthropic/claude-3.5-sonnet"
     DEFAULT_BASE="https://openrouter.ai"
     echo "🚀 Configuration targeted to: OpenRouter Cloud Premium Tier ($DEFAULT_MODEL)"
@@ -71,13 +75,13 @@ fi
 
 echo ""
 
-# Helper function to check if a specific container is running actively
+# Helper: check if a container is running
 is_active() {
     docker ps --format '{{.Names}}' | grep -q "^$1$"
 }
 
 # ---------------------------------------------------------------------------
-# Module 1: SearXNG Private Search Engine Configuration
+# Module 1: SearXNG Private Search Engine
 # ---------------------------------------------------------------------------
 echo "--- 📦 MODULE 1: UPSTREAM SEARCH ENGINE ---"
 if is_active "searxng-private-mesh"; then
@@ -104,7 +108,7 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Module 2: Agent-Shield Security Gateway Core Configuration
+# Module 2: Agent-Shield Security Gateway
 # ---------------------------------------------------------------------------
 echo "--- 🛡️  MODULE 2: AGENT-SHIELD FIREWALL CORE ---"
 if is_active "agent-shield-gateway"; then
@@ -117,7 +121,7 @@ fi
 echo ""
 
 # ---------------------------------------------------------------------------
-# Module 3: OpenClaw Agent Workspace Container Configuration
+# Module 3: OpenClaw Agent Workspace
 # ---------------------------------------------------------------------------
 echo "--- 🎨 MODULE 3: HYPERCONVERGED AGENT WORKSPACE ---"
 if is_active "openclaw-agent-workspace"; then
@@ -127,18 +131,38 @@ else
     read -p "❓ Bundle in a containerized OpenClaw Agent Workspace? (y/N): " DEPLOY_OPENCLAW
 fi
 
+# ---------------------------------------------------------------------------
+# Optional: Community Threat Contribution
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- 🤝 OPTIONAL: COMMUNITY THREAT MESH ---"
+read -p "❓ Help improve Agent-Shield by contributing anonymized threat patterns? (y/N): " CONTRIBUTE
+if [[ "$CONTRIBUTE" =~ ^[Yy]$ ]]; then
+    echo "What would you like your agent to work on to improve Agent-Shield?"
+    echo "  1) Hunt for new prompt injection patterns"
+    echo "  2) Test DLP evasion signatures"
+    echo "  3) Expand regex detection coverage"
+    echo "  4) Other (skip for now)"
+    read -p "Choice [1-4]: " CONTRIBUTION_TYPE
+    echo "✅ Contribution preference saved: option $CONTRIBUTION_TYPE"
+    echo "CONTRIBUTION_TYPE=$CONTRIBUTION_TYPE" >> "$ENV_FILE"
+fi
+
 # ===========================================================================
-# Orchestration Pipeline Execution Engine
+# Orchestration Pipeline Execution
 # ===========================================================================
 echo "======================================================="
 echo "🚀 Executing targeted container orchestration lifecycle..."
 
-# Create a shared custom network bridge for stand-alone container DNS resolution
 docker network create agent-shield-mesh 2>/dev/null || true
 
-# Execute Module 1: SearXNG Deployment Loop
+# ---------------------------------------------------------------------------
+# Execute Module 1: SearXNG
+# Pulls directly from Docker Hub — searxng/searxng:latest
+# No maintenance required on your end.
+# ---------------------------------------------------------------------------
 if [ "$RUN_SEARXNG_ACTION" = true ] && [[ "$DEPLOY_SEARXNG" =~ ^[Yy]$ || "$DEPLOY_SEARXNG" == "" ]]; then
-    echo "📦 Re-allocating isolated SearXNG Private Mesh container..."
+    echo "📦 Pulling SearXNG from Docker Hub..."
     mkdir -p ./config/searxng
     if [ ! -f ./config/searxng/settings.yml ]; then
         cat << 'EOF' > ./config/searxng/settings.yml
@@ -158,15 +182,29 @@ EOF
       -p 8088:8080 \
       --restart always \
       searxng/searxng:latest
+    echo "✅ SearXNG running on port 8088"
 else
-    echo "➡️  Skipping SearXNG structural changes."
+    echo "➡️  Skipping SearXNG deployment."
 fi
 
-# Execute Module 2: Agent-Shield Core Deployment Loop
+# ---------------------------------------------------------------------------
+# Execute Module 2: Agent-Shield Core
+# Option A (default): Pull pre-built image from Docker Hub.
+# Option B (--build): Build from local source.
+# ---------------------------------------------------------------------------
 if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
-    echo "🛠️  Compiling localized Agent-Shield container image layers..."
-    docker build -t agent-shield:latest .
     docker rm -f agent-shield-gateway || true
+
+    if [ "$BUILD_FROM_SOURCE" = true ]; then
+        echo "🔧 Building Agent-Shield from local source..."
+        docker build -t agent-shield:latest .
+        SHIELD_IMAGE="agent-shield:latest"
+    else
+        echo "📦 Pulling Agent-Shield from Docker Hub..."
+        docker pull startekenterprises/agent-shield:latest
+        SHIELD_IMAGE="startekenterprises/agent-shield:latest"
+    fi
+
     docker run -d \
       --name agent-shield-gateway \
       --network agent-shield-mesh \
@@ -177,16 +215,25 @@ if [[ "$DEPLOY_SHIELD" =~ ^[Yy]$ || "$DEPLOY_SHIELD" == "" ]]; then
       -e OLLAMA_HOST=http://docker.internal \
       --add-host "host.docker.internal:host-gateway" \
       --restart always \
-      agent-shield:latest
+      $SHIELD_IMAGE
+
+    echo "✅ Agent-Shield gateway running on port 8000"
+    echo "🖥️  Dashboard available at: http://localhost:8000/dashboard"
 else
-    echo "➡️  Skipping Agent-Shield Core structural changes."
+    echo "➡️  Skipping Agent-Shield Core deployment."
 fi
 
-# Execute Module 3: OpenClaw Deployment Loop with Failover Injection
+# ---------------------------------------------------------------------------
+# Execute Module 3: OpenClaw
+# Always built from pinned local source (./containers/openclaw/).
+# Pinning to a known-good version prevents upstream breaking changes.
+# SearXNG and Agent-Shield are pulled from Docker Hub — OpenClaw is not,
+# because you control the version tested against your stack.
+# ---------------------------------------------------------------------------
 if [[ "$DEPLOY_OPENCLAW" =~ ^[Yy]$ ]]; then
-    echo "🎨 Compiling graphics-compliant OpenClaw environment..."
+    echo "🎨 Building OpenClaw from pinned local source..."
+    echo "   (Pinned build ensures compatibility with this Agent-Shield version)"
 
-    # Regenerate openclaw.json profile rules dynamically to match onboarding selections
     cat << EOF > ./containers/openclaw/openclaw.json
 {
   "agent": {
@@ -223,12 +270,14 @@ EOF
       --add-host "host.docker.internal:host-gateway" \
       --restart always \
       openclaw-agent:latest
+
+    echo "✅ OpenClaw workspace running"
 else
-    echo "➡️  Skipping OpenClaw Workspace structural changes."
+    echo "➡️  Skipping OpenClaw Workspace deployment."
 fi
 
 # ---------------------------------------------------------------------------
-# Save Current State Parameters Locally
+# Save State
 # ---------------------------------------------------------------------------
 cat << EOF > "$STATE_FILE"
 REAL_SEARXNG_URL=$REAL_SEARXNG_URL
@@ -240,6 +289,10 @@ EOF
 
 echo "======================================================="
 echo "✅ INFRASTRUCTURE MESH SYNCHRONIZED!"
-echo "Gateway Target upstream address mapping: $REAL_SEARXNG_URL"
+echo ""
+echo "  🌐 SearXNG Search:     http://localhost:8088"
+echo "  🛡️  Agent-Shield API:   http://localhost:8000"
+echo "  🖥️  Dashboard:          http://localhost:8000/dashboard"
+echo ""
+echo "  Gateway upstream: $REAL_SEARXNG_URL"
 echo "======================================================="
-
