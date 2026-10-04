@@ -1,4 +1,6 @@
-# 🛡️ Agent-Shield (v1.0.0)
+# 🛡️ Agent-Shield (v0.2.0)
+
+> **Version note (Phase 0):** the README previously claimed v1.0.0 while the API reported 0.2.0. That "v1" was aspirational — this is 0.2.0. There is no v1 release; v2 is the planned rebuild (see Roadmap).
 
 An open-source, **local-first Privacy Gateway, Security Mesh & Injection Firewall** that protects autonomous AI agents, developer IDEs, and browser-automation frameworks from **Indirect Prompt Injections** and **Egress Data Leakage (DLP)**.
 
@@ -255,19 +257,7 @@ pytest tests/test_core.py
 
 ## 🗺️ Roadmap
 
-### v1.x (Current)
-- [x] Interactive installer with multi-provider LLM failover
-- [x] SearXNG private search container
-- [x] Agent-Shield DLP + injection firewall proxy
-- [x] OpenClaw browser-use agent sandbox
-- [x] Regex + semantic dual-pass cleansing
-- [x] Web management dashboard at `/dashboard`
-- [x] Docker Hub distribution
-
-### v2.0 (Planned)
-- [ ] **Opt-in Community Threat Mesh** — Contribute your agent's idle cycles to improve detection patterns. Choose what your agent works on during install.
-- [ ] **Telegram Scrum Master** — Control your entire container cluster from your phone.
-- [ ] **Decentralized Contributor Loop** — Community agents submit regex improvements and PRs back to this repo via lint-guarded GitHub Actions.
+> **v2 direction (Phase 0):** interception moves to model traffic via **Open WebUI Pipelines** (filter), decisions via **Ollama Tev1 decision models**; **OpenClaw is demoted from the core** — the proxy must inspect agents, not be one. The checked-off v1.x items above include aspirational claims being demolished or stubbed on the `phase-0-demolition` branch.
 
 ---
 
