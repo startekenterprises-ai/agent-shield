@@ -2,7 +2,6 @@ fastapi>=0.100.0
 uvicorn>=0.22.0
 httpx>=0.27.0
 pydantic>=2.0.0
-mcp>=1.0.0
-fastmcp>=2.0.0
+# NOTE (Phase 0): mcp/fastmcp removed — no code imported them (vapor deps).
 
 pytest-asyncio>=0.21.0

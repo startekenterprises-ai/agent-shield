@@ -35,11 +35,39 @@ async def test_query_salting_and_stripping():
     assert "documentation context" in secured_query
 
 def test_graceful_offline_ollama_fallback():
-    """Ensure engine falls back to pristine text parsing if Ollama is unreachable."""
+    """Ensure engine falls back to pristine text parsing if Ollama is unreachable.
+
+    Phase 0: the v1 blocking Ollama generation call was removed from the hot
+    path and replaced with semantic_check_stub() (a documented no-op pending
+    Tev1 decision models in Phase 2). sanitize() must therefore never raise and
+    must pass text through unchanged regardless of Ollama availability.
+    """
     engine = ShieldEngine(use_ollama=True, ollama_model="non-existent-profile")
     engine.ollama_url = "http://127.0.0"
 
     clean_text = "This is normal code reference text."
     result = engine.sanitize(clean_text)
     assert result == clean_text
+
+def test_semantic_stub_never_blocks_or_raises():
+    """Regression: the semantic pass must not block or raise, whatever the URL.
+
+    Guards against reintroducing the v1 bugs: (1) a blocking generation call
+    in the hot path, and (2) an httpx exception handler that caught only
+    (ConnectError, TimeoutException) instead of the full httpx.HTTPError set.
+    The stub path performs no I/O, so no exception type can escape.
+    """
+    engine = ShieldEngine(use_ollama=True)
+    assert not hasattr(engine, "_evaluate_with_ollama"), \
+        "v1 _evaluate_with_ollama must stay deleted (narrow httpx catch)"
+
+    hostile_url_text = "Some text with http://127.0.0.1:1/unreachable and not-a-url://bad"
+    for bad_url in ("http://127.0.0.1:1", "http://127.0.0", "not-a-url://bad", ""):
+        engine.ollama_url = bad_url
+        assert engine.sanitize(hostile_url_text) == hostile_url_text
+
+    # The stub is an explicit pass-through with the Phase 2 contract documented.
+    assert engine.semantic_check_stub("anything") == "anything"
+    assert "Tev1" in engine.semantic_check_stub.__doc__
+    assert "httpx.HTTPError" in engine.semantic_check_stub.__doc__
 
