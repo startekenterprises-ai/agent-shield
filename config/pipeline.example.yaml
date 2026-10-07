@@ -1,0 +1,40 @@
+# Agent-Shield Phase 1 — pipeline valves reference.
+#
+# In Open WebUI: Pipelines -> agent_shield_filter -> Valves tab.
+# Every key also reads from an AGENTSHIELD_<NAME> environment variable
+# (env wins over the file default), e.g.:
+#   AGENTSHIELD_OLLAMA_BASE_URL=http://omen:11434
+#
+# Copy to pipeline.yaml and adjust for your deployment. This example file
+# is documentation only — the filter ships with compiled-in defaults.
+
+# Directory for events-*.jsonl(.gz) and samples.jsonl (mode 0600).
+LOG_DIR: "./logs/agent-shield"
+
+# Local Ollama serving the Tev1 decision models.
+OLLAMA_BASE_URL: "http://localhost:11434"
+TEV1_MODEL: "tev1:0.8b"
+SYSTEMONE_PATH: "/v1/systemone"
+
+# Background worker bounds. Inlet snapshots metadata+hashes and returns
+# immediately (p99 target < 5ms); classification is async.
+QUEUE_SIZE: 2000            # drop-NEWEST beyond this; every drop gets a record
+WORKER_CONCURRENCY: 4       # parallel Tev1 calls
+CLASSIFIER_TIMEOUT_S: 5.0   # per call; 1 retry on timeout, then error record
+MAX_CLASSIFY_CHARS: 8000    # payload truncated oldest-first beyond this
+
+# 1% of events persist raw text to samples.jsonl (0600). The ONLY place
+# raw content may exist. 0.0 disables (used in tests).
+RAW_SAMPLE_RATE: 0.01
+
+# Response-side logging (lightweight). Disable only if outlet overhead is
+# ever measured as a problem.
+ENABLE_OUTLET: true
+
+# Provisional thresholds — recorded as would_block/would_redact LABELS only.
+# Never acted on in Phase 1. calibrate.py replaces them with measured values.
+PROVISIONAL_BLOCK_THRESHOLD: 0.9
+PROVISIONAL_REDACT_THRESHOLD: 0.7
+
+# Rotated events-*.jsonl.gz retention.
+LOG_RETENTION_DAYS: 30
