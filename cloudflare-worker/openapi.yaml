@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: Agent-Shield Connector API
+  version: 0.1.0
+  description: |
+    Scan text content for security threats before acting on it: prompt
+    injection, leaked secrets/API keys, exposed PII, and SSRF-risk URLs.
+    Returns a verdict (clean/suspicious/malicious) with per-class scores and
+    findings. Detection in v1 is deterministic (heuristic_v1); a hosted
+    decision model replaces the prompt-injection heuristics in a later version.
+
+    Privacy: the service scores content and returns the verdict. Raw content
+    is never logged or retained — only the sha256 content hash and aggregate
+    match counts.
+  contact:
+    name: Agent-Shield
+    url: https://shield.example.com
+servers:
+  - url: https://shield.example.com
+    description: Production
+security:
+  - apiKey: []
+paths:
+  /health:
+    get:
+      summary: Liveness check
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  analyzer: { type: string, example: heuristic_v1 }
+                  service: { type: string, example: agent-shield }
+  /scan:
+    post:
+      summary: Scan content for security threats
+      operationId: scanContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '200':
+          description: Scan verdict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Content too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key issued for the connector. Passed in the X-API-Key header.
+  schemas:
+    ScanRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: The text to scan (prompt, tool output, email, webpage, ...).
+          maxLength: 200000
+        content_type:
+          type: string
+          enum: [text, prompt, tool_output, email, webpage]
+          default: text
+          description: Hint about the content kind.
+      additionalProperties: false
+    ScanResult:
+      type: object
+      required: [verdict, scores, findings, analyzer, content_hash, scanned_chars]
+      properties:
+        verdict:
+          type: string
+          enum: [clean, suspicious, malicious]
+        scores:
+          type: object
+          required: [prompt_injection, secrets_exposure, pii_disclosure, ssrf_risk]
+          properties:
+            prompt_injection: { type: number, minimum: 0, maximum: 1 }
+            secrets_exposure: { type: number, minimum: 0, maximum: 1 }
+            pii_disclosure: { type: number, minimum: 0, maximum: 1 }
+            ssrf_risk: { type: number, minimum: 0, maximum: 1 }
+        findings:
+          type: array
+          description: >
+            Detections. Each finding carries a pattern class and match count —
+            never the matched text itself.
+          items:
+            type: object
+            required: [class, match_count]
+            properties:
+              class:
+                type: string
+                example: ssn
+              match_count:
+                type: integer
+                minimum: 1
+              detail:
+                type: object
+                description: Non-sensitive detail (ip_class, url_hash, signal name).
+                additionalProperties: true
+        analyzer:
+          type: string
+          example: heuristic_v1
+          description: Detection engine version. heuristic_v1 = deterministic rules.
+        content_hash:
+          type: string
+          description: sha256 of the scanned content, for audit correlation.
+        scanned_chars:
+          type: integer
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }

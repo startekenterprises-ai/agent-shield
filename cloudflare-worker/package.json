@@ -1,0 +1,1 @@
+{"description":"Agent-Shield Muse connector — Cloudflare Worker","devDependencies":{"@cloudflare/workers-types":"^4.20241000.0","typescript":"^5.6.0","wrangler":"^3.90.0"},"name":"agent-shield-connector","private":true,"scripts":{"deploy":"wrangler deploy","dev":"wrangler dev","typecheck":"tsc --noEmit"},"version":"0.1.0"}
