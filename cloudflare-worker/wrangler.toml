@@ -1,0 +1,24 @@
+name = "agent-shield-connector"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# Custom domain for the hosted connector:
+#   1. Add the domain to this Cloudflare account (or use workers.dev for staging).
+#   2. Set route pattern below to the real hostname.
+#   3. `wrangler deploy`
+workers_dev = true
+
+[route]
+pattern = "agent-shield.startekenterprises.com/*"
+zone_name = "startekenterprises.com"
+
+# API keys live in KV: key = the API key string,
+# value = JSON like {"tier":"free","label":"meta-review","created_at":"2026-10-07"}.
+# Create the namespace once: `wrangler kv:namespace create API_KEYS`
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "API_KEYS"
+id = "71c6fc41a05f4fbdbaddc80613a3aba5"
+
+[vars]
+ENVIRONMENT = "production"

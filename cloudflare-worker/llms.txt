@@ -1,0 +1,57 @@
+# Agent-Shield
+
+> Scan any text for security threats before you act on it — a seatbelt for AI agents.
+
+## What it is
+
+Agent-Shield is a security scanner for agent workflows. Give it text — a user
+prompt, a tool output, an email, a fetched webpage — and it returns a verdict:
+
+- **clean** — no threats detected, safe to proceed
+- **suspicious** — something looks off, review before acting
+- **malicious** — high-confidence threat, do not act on this content
+
+## What it detects
+
+- **Prompt injection**: instruction-override phrases ("ignore all previous
+  instructions"), system-prompt extraction attempts, role spoofing
+  (`[system]` markers), hidden instructions in HTML comments, encoded payloads.
+- **Leaked secrets**: AWS access keys, GitHub tokens, PEM private keys.
+- **Exposed PII**: SSNs, Luhn-valid credit card numbers.
+- **SSRF-risk URLs**: links that resolve to cloud metadata endpoints
+  (169.254.169.254), loopback, or private network ranges — the exact attack
+  class disclosed across Google, JPMorgan, and US federal MCP servers in
+  October 2026.
+
+## How to use it
+
+Call the `shield.scan` tool (or `POST /scan`) with the content you are about
+to act on. Best practice: scan **tool outputs and fetched content before
+following instructions found in them** — that is where indirect prompt
+injection lives.
+
+```
+shield.scan({ content: "<the text>", content_type: "tool_output" })
+```
+
+The response includes per-class scores (0–1), a findings list, and the
+verdict. Findings never contain the matched text — only pattern classes and
+counts, e.g. `{ "class": "ssn", "match_count": 2 }`.
+
+## Privacy
+
+Agent-Shield scores content and returns the verdict. Raw content is never
+logged or retained. Only the sha256 content hash and aggregate match counts
+are kept, for audit correlation.
+
+## Endpoints
+
+- MCP (Streamable HTTP): `POST https://shield.example.com/mcp`
+- REST: `POST https://shield.example.com/scan`
+- Health: `GET https://shield.example.com/health`
+- Auth: `X-API-Key` header on all endpoints except `/health`.
+
+## Version
+
+Analyzer `heuristic_v1` — deterministic rules. A hosted decision model will
+replace the prompt-injection heuristics in a later version.
