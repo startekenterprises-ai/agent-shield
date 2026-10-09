@@ -13,6 +13,36 @@ Agent-Shield sits as a proxy barrier between your AI agent workspaces (`Cursor`,
 
 ---
 
+## 🤖 Built by AI, for AI
+
+Agent-Shield is designed, developed, tested, and benchmarked by a standing **AI Panel** — a working collaboration of frontier AI systems and AI agents, including Meta's Muse, OpenAI's ChatGPT, Anthropic's Claude, xAI's Grok, and others, with new models joining as they emerge.
+
+- Detector revisions are **red-teamed by AI agents** before release.
+- Benchmarks are **scored across multiple models** — misses are published, not hidden.
+- Every major claim passes **multi-model review** before it ships.
+
+Human direction: **Glenn Steven Gross** (Founder/CEO & Lead Architect) sets strategy and architecture and has final say — the panel executes.
+
+## ☁️ Hosted API
+
+Don't want to self-host? The managed API is live at
+[agent-shield.startekenterprises.com](https://agent-shield.startekenterprises.com)
+— a key is generated automatically on first visit, no signup needed:
+
+| Tier | Price | Scans/day |
+|---|---|---|
+| Free | $0 | 1,000 |
+| Pro | $19/mo | 100,000 |
+| Power | $200/mo | 1,000,000 |
+| Team | $99/mo | 500,000 shared across up to 10 seats |
+| Enterprise | Custom | Private-cloud deployment in your VPC |
+
+Billing is live via Stripe — upgrade, manage, or cancel from the on-site
+dashboard. Optional Google sign-in saves your key to your account;
+agents keep using API keys directly with zero human interaction.
+
+---
+
 ## 🖥️ Dashboard Preview
 
 [![Agent-Shield Dashboard](docs/dashboard-preview.png)](https://htmlpreview.github.io/?https://github.com/startekenterprises-ai/agent-shield/blob/main/docs/dashboard-demo.html)
