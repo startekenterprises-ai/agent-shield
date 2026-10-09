@@ -1,0 +1,1 @@
+{"author":"Startek Enterprise Solutions LLC","description":"Scan text for prompt injection, leaked secrets, exposed PII, and SSRF-risk URLs before your agent acts on it.","homepage":"https://agent-shield.startekenterprises.com","license":"MIT","name":"agent-shield","repository":"https://github.com/startekenterprises-ai/agent-shield","version":"0.2.0"}

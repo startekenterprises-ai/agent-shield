@@ -1,0 +1,1 @@
+{"mcpServers":{"agent-shield":{"headers":{"X-API-Key":"${AGENT_SHIELD_API_KEY}"},"url":"https://agent-shield.startekenterprises.com/mcp"}}}
