@@ -38,9 +38,10 @@ framework, any host, and any scanner can interoperate.
 
 ## 3. The handshake
 
-1. The requester submits content plus minimal context to the scanner.
+1. The requester submits content (with optional scan parameters) to the
+   scanner.
 2. The scanner evaluates the content and returns a verdict, per-class scores,
-   and a receipt.
+   findings, and a receipt.
 3. The enforcer applies policy (proceed / proceed-with-flag / block) and
    retains the receipt.
 
@@ -49,56 +50,128 @@ framework, any host, and any scanner can interoperate.
 ```json
 {
   "content": "<the untrusted content, as text>",
-  "context": {
-    "source": "web|email|tool_output|user_message|agent_message|file",
-    "tool": "<tool or action the content feeds, if known>",
-    "direction": "inbound|outbound"
-  }
+  "content_type": "text",
+  "mode": "detect",
+  "sensitivity": "medium",
+  "nonce": "<optional, requester-chosen>",
+  "offsets": false
 }
 ```
 
-`context` is advisory metadata for scoring and audit. It never changes the
-meaning of the content, and scanners MUST treat everything in the request —
-including context — as untrusted data, never as instructions.
+Fields (live API, verified 2026-10-28):
+
+- `content` (string, **required**) — the untrusted content, as text.
+- `content_type` (string, default `"text"`) — a hint about the content kind:
+  `text` | `prompt` | `tool_output` | `email` | `webpage`.
+- `mode` (string, default `"detect"`) — `"detect"` (report only) or
+  `"enforce"` (the response additionally carries an `action` field).
+- `sensitivity` (string, default `"medium"`) — `"low"` | `"medium"` |
+  `"high"`; tunes the verdict thresholds and is echoed in the response.
+- `nonce` (string, optional) — a requester-chosen value bound into the
+  signed receipt, for replay protection.
+- `offsets` (boolean, optional, default `false`) — when `true`, findings
+  for secrets/PII include character offsets (positions only, never matched
+  text).
+
+Scanners MUST treat everything in the request as untrusted data, never as
+instructions.
+
+> **Reserved, not current:** a `context` object (`source` / `tool` /
+> `direction`) appeared in earlier drafts of this section. It is **not**
+> part of the v0.1 wire format — the live API does not read it. It is
+> reserved for a future version.
 
 ### 3.2 Response
 
 ```json
 {
-  "verdict": "clean | suspicious | malicious",
+  "verdict": "no_signals",
   "scores": {
     "prompt_injection": 0.0,
-    "ssrf": 0.0,
-    "secrets": 0.0,
-    "pii": 0.0,
-    "known_bad_url": 0.0
+    "secrets_exposure": 0.0,
+    "pii_disclosure": 0.0,
+    "ssrf_risk": 0.0
   },
-  "engine": { "id": "agent-shield", "version": "heuristic_v5" },
+  "findings": [
+    { "class": "prompt_injection_signal", "match_count": 1,
+      "detail": { "signal": "instruction_override" } }
+  ],
+  "analyzer": "heuristic_v5",
+  "content_hash": "<keyed HMAC hash of the content>",
+  "scanned_chars": 65,
+  "mode": "detect",
+  "sensitivity": "medium",
   "receipt": {
-    "scan_id": "<unique id>",
-    "content_hash": "<SHA-256 of content>",
-    "timestamp": "<ISO 8601>",
-    "signature": "<optional, hosted implementations>"
+    "receipt_id": "rcpt_…",
+    "scanned_at": "<ISO 8601>",
+    "expires_at": "<ISO 8601>",
+    "verdict": "no_signals",
+    "content_hash": "<same keyed hash as above>",
+    "analyzer": "heuristic_v5",
+    "sensitivity": "medium",
+    "coverage": {
+      "secrets": "full",
+      "pii": "full",
+      "ssrf_urls": "full",
+      "prompt_injection": "partial — deterministic patterns only; semantic classifier in development"
+    },
+    "key_fp": "<api-key fingerprint>",
+    "key_id": "<receipt signing key id>",
+    "sig_alg": "hmac-sha256",
+    "signature": "<HMAC-SHA256 signature>",
+    "verify_url": "<human-clickable verification link>"
   }
 }
 ```
 
-- **Verdict bands.** `clean` — no material signals. `suspicious` — signals
-  present below the block threshold; log and flag. `malicious` — known-bad
-  pattern class present at confidence; block by default.
-- **Scores** are per-class, 0.0–1.0, and are the scanner's honest confidence —
-  implementations MUST publish how their scores are calibrated (e.g., public
-  benchmark results) and MUST NOT present a verdict as a guarantee.
-- **Receipts carry a hash, never the content.** The protocol exists partly so
-  operators can prove what was checked without retaining — or leaking — the
-  checked content itself.
+In `enforce` mode the response also carries `"action"`:
+`"block"` | `"review"` | `"allow"`, derived from the verdict.
+
+- **Verdict bands.** `no_signals` — no detector fired; it means "no known
+  patterns found," **not** "safe." (On the `/v1/scan` alias the same outcome
+  is reported as `clean`.) `suspicious` — signals present below the block
+  threshold; log and flag. `malicious` — known-bad pattern class present at
+  confidence; block by default.
+- **Scores** are per-class, 0.0–1.0, under exactly four keys —
+  `prompt_injection`, `secrets_exposure`, `pii_disclosure`, `ssrf_risk` —
+  and are the scanner's honest confidence. Implementations MUST publish how
+  their scores are calibrated (e.g., public benchmark results) and MUST NOT
+  present a verdict as a guarantee.
+- **Findings** list what fired. Each entry has a `class` (e.g. `ssn`,
+  `credit_card`, `aws_key`, `github_token`, `pem_key`, `ssrf`,
+  `prompt_injection_signal`), a `match_count` (how many times it fired —
+  matched text itself is never returned), and an optional `detail` object
+  (e.g. the named signal for `prompt_injection_signal`, or the risk
+  classification for `ssrf`).
+- **Analyzer** is a flat string identifying the engine and its version
+  (the reference implementation currently returns `"heuristic_v5"`). There
+  is no nested engine object.
+- **Receipts carry a hash, never the content.** `content_hash` is a keyed
+  HMAC hash of the content — it can be correlated with the requester's own
+  logs, cannot be reversed into the content, and differs across API keys
+  for identical content. The protocol exists partly so operators can prove
+  what was checked without retaining — or leaking — the checked content
+  itself.
+- **Signed receipts.** Every scan on the hosted reference implementation
+  returns an HMAC-signed receipt (field `receipt`, above) with a
+  human-clickable `verify_url` — tamper-evident proof a scan happened,
+  verified by the hosted implementation (HMAC is a shared-secret scheme, so
+  verification runs through the issuer today). Receipt signing may be
+  treated as optional for other implementations, but the hosted
+  Agent-Shield implementation always issues one. Publicly verifiable
+  signed receipts (JWS) are planned for Protocol v0.2.
 
 ### 3.3 Transport bindings
 
-- **REST:** `POST /v2/scan` with the request JSON above; API-key header auth
-  for hosted scanners.
-- **MCP:** the same exchange exposed as a tool call, so MCP-native agents can
-  scan inside their existing tool loop.
+- **REST (canonical):** `POST /v2/scan` with the request JSON above and the
+  API key in the `X-API-Key` header. **Legacy alias:** `POST /v1/scan` —
+  same engine, same fields, except the verdict vocabulary uses `clean`
+  where `/v2/scan` returns `no_signals`.
+- **MCP:** `POST /mcp` (Streamable HTTP), API key in the `X-API-Key`
+  header, tool name **`shield.scan`**. Input schema:
+  `{ "content": string (required), "content_type": string — one of
+  "text" | "prompt" | "tool_output" | "email" | "webpage", default
+  "text" }`. Returns the same verdict / scores / findings semantics.
 - **In-process:** a local library call with identical semantics (the reference
   implementation's own website chatbot uses this binding — see §6).
 
@@ -108,7 +181,7 @@ including context — as untrusted data, never as instructions.
 |---|---|
 | `malicious`, any class | Block the action; keep the receipt; surface to the operator |
 | `suspicious` inbound (content feeding the agent) | Proceed only with flag + receipt; consider a second-opinion scan |
-| `suspicious`/`malicious` outbound (content the agent emits) | Fail closed for `secrets` and `pii` classes; flag otherwise |
+| `suspicious`/`malicious` outbound (content the agent emits) | Fail closed for `secrets_exposure` and `pii_disclosure` classes; flag otherwise |
 | Scanner unreachable | Operator's choice, stated in advance: fail open for low-risk read actions, fail closed for writes, sends, and anything touching credentials |
 
 The pattern classes differ in kind: a secrets-egress risk is not an injection
@@ -163,13 +236,13 @@ risk. Policies SHOULD be set per class, not per verdict alone.
 - The spec is published openly (text under CC-BY 4.0; the reference
   implementation is open-core) so anyone can implement it.
 - Changes are versioned (v0.x = draft line). A public conformance test suite
-  is planned for v0.2, alongside optional signed receipts (JWS).
+  is planned for v0.2, alongside publicly verifiable signed receipts (JWS).
 - Pattern intelligence and disputed-pattern review live in the Agent Commons,
   moderated by StarTek with a human kill switch — the protocol's governance
   is a community with an accountable operator, not a black box.
 
 ---
 
-*Version 0.1 — published 2026-10-28. Field shapes track the reference
-implementation's live API. Also rendered at
+*Version 0.1 — published 2026-10-28. Last verified against the live API on
+2026-10-28. Also rendered at
 https://agent-shield.startekenterprises.com/protocol.*
