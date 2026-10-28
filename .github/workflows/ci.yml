@@ -8,7 +8,6 @@ on:
 
 jobs:
   validate:
-    runs-size: ubuntu-latest
     runs-on: ubuntu-latest
     strategy:
       matrix:
