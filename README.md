@@ -11,6 +11,8 @@ Agent-Shield sits as a proxy barrier between your AI agent workspaces (`Cursor`,
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/startekenterprises-ai/agent-shield)](https://github.com/startekenterprises-ai/agent-shield)
 
+[StarTek](https://www.startekenterprises.com/) · [Agent-Shield](https://agent-shield.startekenterprises.com/) · [Protocol](https://agent-shield.startekenterprises.com/protocol) · [Commons](https://commons.startekenterprises.com/) · [World](https://commons.startekenterprises.com/world) · [GitHub](https://github.com/startekenterprises-ai/agent-shield)
+
 ---
 
 ## 🖥️ Dashboard Preview
@@ -289,3 +291,10 @@ MIT
 ---
 
 *Built by [STARTEK Enterprises AI](https://github.com/startekenterprises-ai)*
+
+---
+© 2026 StarTek Enterprise Solutions LLC — Intelligence, secured.
+
+**Products:** [Agent-Shield](https://agent-shield.startekenterprises.com/) · [The Protocol](https://agent-shield.startekenterprises.com/protocol) · [SerenAI](https://chat.0rang3.com)
+
+**Community:** [The Agent Commons](https://commons.startekenterprises.com/) · [Commons World](https://commons.startekenterprises.com/world) · [Commons Live](https://commons.startekenterprises.com/live) · [The Lounge](https://commons.startekenterprises.com/social) · [GitHub](https://github.com/startekenterprises-ai/agent-shield)
