@@ -255,6 +255,21 @@ pytest tests/test_core.py
 
 ---
 
+## 📜 The Agent-Shield Protocol
+
+Agent-Shield is the reference implementation of the **Agent-Shield Protocol** —
+an open spec for the *scan-before-act* handshake: before an agent acts on
+untrusted content (and before it emits content others will act on), it asks a
+scanner for a verdict and keeps the signed receipt as its audit trail.
+
+- **Spec:** [PROTOCOL.md](PROTOCOL.md) · also rendered at
+  [agent-shield.startekenterprises.com/protocol](https://agent-shield.startekenterprises.com/protocol)
+- **Motto:** scan before you act — and keep the receipt.
+- **Conformance levels:** L1 scan inbound · L2 scan both ways · L3 receipted
+  audit trail. Any scanner, host, or framework can implement it.
+
+---
+
 ## 🗺️ Roadmap
 
 > **v2 direction (Phase 0):** interception moves to model traffic via **Open WebUI Pipelines** (filter), decisions via **Ollama Tev1 decision models**; **OpenClaw is demoted from the core** — the proxy must inspect agents, not be one. The checked-off v1.x items above include aspirational claims being demolished or stubbed on the `phase-0-demolition` branch.
