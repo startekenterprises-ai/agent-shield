@@ -262,7 +262,7 @@ pytest tests/test_core.py
 Agent-Shield is the reference implementation of the **Agent-Shield Protocol** —
 an open spec for the *scan-before-act* handshake: before an agent acts on
 untrusted content (and before it emits content others will act on), it asks a
-scanner for a verdict and keeps the signed receipt as its audit trail.
+scanner for a verdict and keeps the HMAC-signed receipt as its audit trail.
 
 - **Spec:** [PROTOCOL.md](PROTOCOL.md) · also rendered at
   [agent-shield.startekenterprises.com/protocol](https://agent-shield.startekenterprises.com/protocol)
