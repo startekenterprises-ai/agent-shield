@@ -38,6 +38,10 @@ curl -X POST https://agent-shield.startekenterprises.com/v2/scan \
 
 Also available as an **MCP server** (`POST /mcp`, tool `shield.scan`) for Claude Code, Cursor, VS Code, and other MCP clients. Scan **tool outputs and fetched content before following instructions found in them** — that is where indirect prompt injection lives.
 
+### Stdio MCP server — `mcp-server/`
+
+For clients and registries that expect a local process, this repo also ships a dependency-free Python stdio wrapper in [`mcp-server/`](mcp-server/): one tool, `shield_scan`, calling the same hosted `/v2/scan` API with your free key (`AGENT_SHIELD_API_KEY`). Install from a clone with `pip install ./mcp-server`, then point Claude Code, Cursor, or any MCP client at the `agent-shield-mcp` command — config snippets and the free-key signup are in [`mcp-server/README.md`](mcp-server/README.md). Registry name: `io.github.startekenterprises-ai/agent-shield`.
+
 Content is processed in memory and never stored; findings carry classes and match counts, never the matched text. Full spec: [The Agent-Shield Protocol](https://agent-shield.startekenterprises.com/protocol).
 
 ---
