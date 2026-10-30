@@ -1,10 +1,15 @@
-# 🛡️ Agent-Shield (v0.2.0)
+# 🛡️ Agent-Shield
 
-> **Version note (Phase 0):** the README previously claimed v1.0.0 while the API reported 0.2.0. That "v1" was aspirational — this is 0.2.0. There is no v1 release; v2 is the planned rebuild (see Roadmap).
+**Scan what your AI agent reads *before it acts.***
 
-An open-source, **local-first Privacy Gateway, Security Mesh & Injection Firewall** that protects autonomous AI agents, developer IDEs, and browser-automation frameworks from **Indirect Prompt Injections** and **Egress Data Leakage (DLP)**.
+Agent-Shield is a fast, deterministic pre-action security check for AI agents. It scans tool outputs, fetched web content, and other untrusted text for **leaked secrets, exposed PII, SSRF-risk URLs, and known prompt-injection patterns** — and returns a verdict plus a signed receipt for every scan. One API call, over REST or MCP.
 
-Agent-Shield sits as a proxy barrier between your AI agent workspaces (`Cursor`, `Claude Code`, `OpenClaw`, `Open WebUI`, `AnythingLLM`) and the internet — scrubbing malicious injections *coming in* from web crawls, and blocking your API keys and source code from leaking *out*.
+**The hosted API is the current product** — [agent-shield.startekenterprises.com](https://agent-shield.startekenterprises.com/):
+
+- **Free tier:** 1,000 scans/day. Get a key in one API call — no email, no credit card.
+- **Paid tiers:** Pro $20/mo · Power $200/mo · Team $500/mo (5 seats).
+- **Private cloud:** we deploy the full scanning API into your VPC / cloud account — starting at $12K/year per deployment, with a 30-day pilot path.
+- **Honest limits:** this is a deterministic pre-filter, not a guarantee. It is strong on secrets, PII, and SSRF-risk URLs, and weak on novel prompt injection (4.7% recall on an external hold-out set the engine never saw). We publish the real numbers, misses included: [benchmarks](https://agent-shield.startekenterprises.com/benchmarks).
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/startekenterprises/agent-shield)](https://hub.docker.com/r/startekenterprises/agent-shield)
 [![Docker Image Version](https://img.shields.io/docker/v/startekenterprises/agent-shield)](https://hub.docker.com/r/startekenterprises/agent-shield)
@@ -15,11 +20,38 @@ Agent-Shield sits as a proxy barrier between your AI agent workspaces (`Cursor`,
 
 ---
 
+## ⚡ Quickstart (hosted API)
+
+```bash
+# 1. Get a free API key — no email, no credit card
+curl -X POST https://agent-shield.startekenterprises.com/v1/signup \
+  -H 'Content-Type: application/json' \
+  -d '{"label":"my-test-agent"}'
+# → {"api_key":"as_live_...","tier":"free","scans_per_day":1000}
+
+# 2. Scan untrusted content before your agent acts on it
+curl -X POST https://agent-shield.startekenterprises.com/v2/scan \
+  -H "X-API-Key: YOUR_KEY" -H 'Content-Type: application/json' \
+  -d '{"content":"<tool output or fetched text to check>","content_type":"tool_output"}'
+# → {"verdict":"no_signals|suspicious|malicious","scores":{...},"findings":[...],"receipt":{...}}
+```
+
+Also available as an **MCP server** (`POST /mcp`, tool `shield.scan`) for Claude Code, Cursor, VS Code, and other MCP clients. Scan **tool outputs and fetched content before following instructions found in them** — that is where indirect prompt injection lives.
+
+Content is processed in memory and never stored; findings carry classes and match counts, never the matched text. Full spec: [The Agent-Shield Protocol](https://agent-shield.startekenterprises.com/protocol).
+
+---
+
+## 🏠 Self-hosted stack (the original local implementation)
+
+Everything below this point documents the **original open-source, local-first stack** — the Docker-based privacy gateway / proxy this project started as. It shares detector heritage with the hosted API and remains available to run yourself, but it is the heritage implementation, not the current hosted product described above. (Self-hosted stack version: 0.2.0. The hosted API engine is `heuristic_v5`.)
+
+
 ## 🖥️ Dashboard Preview
 
 [![Agent-Shield Dashboard](docs/dashboard-preview.png)](https://htmlpreview.github.io/?https://github.com/startekenterprises-ai/agent-shield/blob/main/docs/dashboard-demo.html)
 
-> Click the image to launch the live interactive demo — no install required.
+> The self-hosted stack's dashboard — click the image to launch the interactive demo. For the live hosted engine, use the Quickstart above.
 
 ---
 
@@ -37,7 +69,7 @@ A scraped page containing hidden text like:
 
 ---
 
-## 🚀 Key Features
+## 🚀 Key Features (self-hosted stack)
 
 - **Universal Drop-In Proxy** — Mimics SearXNG and OpenAI-compatible endpoints. Reroute your agent workspace by changing a single environment variable.
 - **Dual-Pass Inbound Cleansing** — Multi-threaded regex filters plus async local semantic scanning via Ollama (`qwen2.5-coder`) catch injections before they hit your context window.
